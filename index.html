@@ -160,7 +160,7 @@ main{padding-block:0 0}
 .prices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 @media (max-width:860px){.prices{grid-template-columns:minmax(0,1fr)}}
 .price{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:grid;gap:12px;align-content:start}
-.price.pick{border:2px solid var(--accent)}
+.price.featured{border:2px solid var(--accent)}
 .price .tag{justify-self:start;font-size:12px;font-weight:700;color:var(--accent-strong);background:var(--accent-soft);padding:2px 9px;border-radius:999px}
 .price h3{font-size:18px;font-weight:800}
 .price .amt{font-family:var(--font-display);font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
@@ -333,7 +333,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .hero h1 em{color:var(--accent-strong)}
 @supports ((-webkit-background-clip:text) or (background-clip:text)){.hero h1 em{background:var(--grad);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}}
 .proof{border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--grad) border-box}
-.price.pick{border:2px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--grad) border-box;box-shadow:0 20px 40px -26px var(--g1)}
+.price.featured{border:2px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--grad) border-box;box-shadow:0 20px 40px -26px var(--g1)}
 .price .tag{background:linear-gradient(120deg,var(--accent-soft),var(--organik-soft))}
 .rule.now{background:var(--grad-btn);background-size:200% 200%;border-color:transparent}
 .rule,.price,.desa,.acc,.card,details{transition:transform .25s ease,box-shadow .3s ease}
@@ -564,7 +564,7 @@ h1,h2{color:var(--brand-ink)}
   linear-gradient(120deg,#137F95,#1A97B0 55%,#3BB7C8);background-size:auto;animation:none}
 .cta-band{box-shadow:0 30px 60px -36px rgba(12,59,95,.7)}
 .cta-band::after{background:var(--grain);background-size:180px;opacity:.35;mix-blend-mode:soft-light}
-.price.pick{background:linear-gradient(170deg,color-mix(in srgb,var(--surface) 86%,#BDEFF7),var(--surface) 50%) padding-box,linear-gradient(140deg,var(--g1),#76D4E2,#9EE2BE) border-box}
+.price.featured{background:linear-gradient(170deg,color-mix(in srgb,var(--surface) 86%,#BDEFF7),var(--surface) 50%) padding-box,linear-gradient(140deg,var(--g1),#76D4E2,#9EE2BE) border-box}
 .acc{background:linear-gradient(170deg,color-mix(in srgb,var(--c) 14%,var(--surface)) 0%,var(--surface) 60%)}
 .steps li{border-image:linear-gradient(90deg,var(--g1),#76D4E2,#9EE2BE) 1}
 .steps li::before{background:linear-gradient(135deg,#137F95,#1A97B0,#5CC6D4)}
@@ -578,6 +578,22 @@ footer::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;back
   .hero::before{animation:meshdrift 18s ease-in-out infinite alternate}
   .hero .wrap::before{animation:orbit 28s linear infinite}
 }
+
+/* ===== v10 one continuous landing page ===== */
+.hero + .home-flow{margin-top:-84px}
+.home-flow{position:relative;isolation:isolate;background:
+  radial-gradient(45% 9% at -5% 14%,var(--soft-2),transparent 70%),
+  radial-gradient(40% 8% at 105% 26%,var(--soft-3),transparent 70%),
+  radial-gradient(50% 9% at -8% 42%,var(--soft-1),transparent 70%),
+  radial-gradient(42% 8% at 108% 56%,var(--soft-2),transparent 70%),
+  radial-gradient(48% 9% at -6% 70%,var(--soft-3),transparent 70%),
+  radial-gradient(45% 8% at 106% 84%,var(--soft-1),transparent 70%),
+  linear-gradient(180deg,var(--bg) 0%,color-mix(in srgb,var(--band) 55%,var(--bg)) 30%,var(--bg) 52%,color-mix(in srgb,var(--band) 55%,var(--bg)) 76%,var(--bg) 100%)}
+.home-flow::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--grain);background-size:180px;opacity:.25;mix-blend-mode:soft-light;pointer-events:none}
+.home-flow .band{background:none}
+.home-flow > .section:first-child{padding-top:0}
+.home-flow .section{padding-block:44px}
+.home-flow .section.tight{padding-block:28px}
 </style>
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -1071,6 +1087,7 @@ function vHome(){
     </div>
   </div></section>
 
+  <div class="home-flow">
   <section class="section tight"><div class="wrap"><div class="roles">
     <div class="role-card"><span class="role-tag">${t('tag.biz')}</span><h3>${t('rc.bizTitle')}</h3><p class="muted">${t('rc.bizSub')}</p>
       ${ul(t('rc.bizList'))}
@@ -1102,7 +1119,7 @@ function vHome(){
 
   <section class="section"><div class="wrap">
     <div class="sec-head"><p class="eyebrow">${t('p.eyebrow')}</p><h2 class="h2">${t('p.h2')}</h2><p class="lead">${t('p.lead')}</p></div>
-    <div class="prices">${card('p.c1',rp(150000),'')}${card('p.c2',rp(220000),'pick')}${card('p.c3','+'+rp(60000),'')}</div>
+    <div class="prices">${card('p.c1',rp(150000),'')}${card('p.c2',rp(220000),'featured')}${card('p.c3','+'+rp(60000),'')}</div>
     <p class="price-note">${t('p.note',rp(25000))}</p>
   </div></section>
 
@@ -1117,7 +1134,8 @@ function vHome(){
     <div class="faq">${t('faq').map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>
   </div></section>
 
-  <section class="section tight"><div class="wrap"><div class="cta-band"><div><h2>${t('cta.h2')}</h2><p>${t('cta.p')}</p></div><button class="btn" data-act="go" data-v="join">${t('h.ctaJoin')}</button></div></div></section>`;
+  <section class="section tight"><div class="wrap"><div class="cta-band"><div><h2>${t('cta.h2')}</h2><p>${t('cta.p')}</p></div><button class="btn" data-act="go" data-v="join">${t('h.ctaJoin')}</button></div></div></section>
+  </div>`;
 }
 
 /* ---------- form helpers ---------- */
