@@ -464,6 +464,18 @@ body[data-role="crew"] .choice:has(input:checked){border-color:var(--crew);backg
 .cp{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--crew);border-radius:14px;padding:18px;display:grid;gap:6px;align-content:start}
 .cp h3{font-size:17px}
 .cp p{color:var(--muted);font-size:14.5px}
+
+/* ===== v7 language picker ===== */
+.cs .st,.cs small{white-space:normal;overflow-wrap:anywhere}
+@media (max-width:400px){.stepper li{font-size:11.5px;overflow-wrap:anywhere}.cs .st{font-size:11.5px}}
+footer .wrap{align-items:center}
+.foot-info{display:grid;gap:4px;min-width:0}
+.lang-pick{display:flex;align-items:center;gap:4px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.lang-pick .lang-lbl{font-size:12.5px;color:var(--muted);padding:0 8px 0 10px}
+.lang-pick button{border:0;background:none;border-radius:999px;padding:6px 12px;font-family:var(--font-display);font-size:13.5px;color:var(--muted);cursor:pointer;transition:background .2s,color .2s}
+.lang-pick button:hover{color:var(--fg)}
+.lang-pick button[aria-pressed="true"]{background:var(--grad-btn);color:var(--accent-ink)}
+@media (max-width:520px){.lang-pick{border-radius:14px}}
 </style>
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -474,38 +486,353 @@ body[data-role="crew"] .choice:has(input:checked){border-color:var(--crew);backg
     <button class="brand" data-act="go" data-v="home" aria-label="빈고 홈">
       <span class="brand-mark" aria-hidden="true"><i style="background:var(--organik)"></i><i style="background:var(--anorganik)"></i><i style="background:var(--residu)"></i></span><span class="brand-name">Bin<span class="dash">-</span>Go</span><span class="brand-ko">빈고</span>
     </button>
-    <div class="role-switch" role="group" aria-label="이용자 선택">
-      <button data-act="role" data-r="biz">수거 맡기기</button><button data-act="role" data-r="crew">수거인</button>
-    </div>
+    <div class="role-switch" id="role-switch" role="group"></div>
     <nav class="nav" id="nav" aria-label="주요 메뉴"></nav>
   </div>
 </header>
 <main id="app"></main>
 <footer><div class="wrap">
-  <span>Bin-Go 빈고 · Every bin, a Bingo · 프로토타입 (업소·인물·가격은 예시)</span>
-  <span>문의 WhatsApp <span class="mono">+62 8xx-xxxx-xxxx</span> · 월–토 08–17시</span>
+  <div class="foot-info"><span id="foot-about"></span><span id="foot-contact"></span></div>
+  <div class="lang-pick" id="lang-pick" role="group" aria-label="Language"></div>
 </div></footer>
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script>
+/* ---------- language ---------- */
+const LANGS=[['ko','한국어'],['en','English'],['id','Bahasa Indonesia']];
+const LOCALE={ko:'ko-KR',en:'en-US',id:'id-ID'};
+let lang='ko';
+try{const l=localStorage.getItem('bingo-lang');if(LANGS.some(x=>x[0]===l))lang=l;}catch(e){}
+
+const I18N={
+ko:{
+  'nav.home':'소개','nav.join':'업소 등록','nav.request':'수거 신청','nav.my':'내 업소','nav.verify':'증빙 확인',
+  'nav.crew':'소개','nav.crewApply':'지원하기','nav.crewStatus':'지원 현황',
+  'role.biz':'수거 맡기기','role.crew':'수거인','role.aria':'이용자 선택',
+  'tag.biz':'업주용','tag.crew':'수거인용','tag.check':'점검용',
+  'foot.about':'프로토타입 · 업소·인물·가격은 예시','foot.contact':'문의 WhatsApp','foot.hours':'월–토 08–17시','foot.lang':'언어',
+  'st.organik':'유기물','st.anorganik':'재활용품','st.residu':'잔재물',
+  'sd.organik':'음식물·제물 잔재','sd.anorganik':'플라스틱·캔·종이','sd.residu':'기저귀·티슈 등',
+  'bags':n=>`${n}봉`,'xConfirmed':n=>`${n}회 확인`,'times':n=>`${n}회`,
+  'ls.loading':'운반 중','ls.dropped':'처리처 확인 대기','ls.confirmed':'처리 확인','ls.rejected':'반려',
+  'c.ok':'확인','c.wait':'대기','c.received':'접수','c.paid':'완료','c.live':'운영 중','c.soon':'모집 중','c.review':'서류 확인 중',
+  'freq.alt':'격일','freq.daily':'매일',
+  'type.homestay':'숙박업소','type.guesthouse':'게스트하우스','type.warung':'와룽','type.cafe':'카페','type.resto':'소형 식당',
+  'type.homestaySub':'5실 이하','type.restoSub':'30석 이하',
+  'rooms':n=>`${n}실`,'seats':n=>`${n}석`,
+  'vol.s':'1–2개','vol.m':'3–4개','vol.l':'5개 이상','volSum':v=>`하루 봉투 ${v}`,
+  'example':'예시','exampleSuffix':' (예시)',
+  'period':'11월 1–8일','month':'11월',
+  'proof.title':'쓰레기 처리 증빙서','proof.conf':(a,b)=>`처리 확인 ${a}/${b}건`,'proof.show':'점검 때 QR을 보여 주세요',
+  'h.h1':'쓰레기는 <em>마을이 함께</em>,<br>증빙은 자동으로',
+  'h.lead':'작은 홈스테이·와룽·카페를 묶어 마을 수거인과 허가된 처리처에 연결합니다. 유기물과 잔재물도 받습니다.',
+  'h.ctaJoin':'업소 등록하기','h.ctaCrew':'수거인으로 일하기',
+  'h.f1':'약정 없음','h.f2':p=>`월 ${p}부터`,'h.f3':'WhatsApp 알림',
+  'h.bubble':'유기물 수령이 확인됐어요. 이번 달 증빙에 반영했습니다.',
+  'rc.bizTitle':'수거를 맡기고 싶어요','rc.bizSub':'홈스테이·와룽·카페 사장님','rc.bizList':['업소 등록 후 정기 수거','추가 수거·쉬기 신청','매달 처리 증빙서'],
+  'rc.bizBtn1':'업소 등록','rc.bizBtn2':'수거 신청',
+  'rc.crewTitle':'수거인으로 일하고 싶어요','rc.crewSub':'마을 주민 누구나','rc.crewList':p=>[`방문 1곳 ${p}`,'마을 안 정해진 경로','장비·교육 제공'],
+  'rc.crewBtn1':'지원하기','rc.crewBtn2':'자세히',
+  'r.eyebrow':'2026 규제','r.h2':'버리는 것만으론 부족합니다',
+  'r.w1':'2026. 4','r.t1':'매립지 유기물 반입 금지','r.d1':'음식물·제물 잔재는 따로 처리해야 합니다.',
+  'r.w2':'2026. 7','r.t2':'분리배출 의무화','r.d2':'분리하고, 처리한 사실을 증명해야 합니다.',
+  'r.w3':'지금','r.t3':'점검용 기록이 필요합니다','r.d3':'빈고가 수거할 때마다 남겨 드립니다.',
+  's.eyebrow':'이용 방법','s.h2':'등록부터 증빙까지 4단계',
+  's.list':[['등록','온라인 5분, 또는 반자르에서.'],['방문 상담','분리 방법 안내와 색 봉투 전달.'],['수거','사진·무게 기록 후 WhatsApp 알림.'],['증빙','처리처가 확인하면 바로 반영.']],
+  'a.eyebrow':'받는 쓰레기','a.h2':'세 가지로만 나눠 주세요',
+  'a.bag.organik':'초록 봉투','a.bag.anorganik':'노란 봉투','a.bag.residu':'회색 봉투',
+  'a.list.organik':['음식물, 조리 찌꺼기','바나나잎, 차낭 등 제물 잔재','정원 잎과 잔가지'],
+  'a.list.anorganik':['플라스틱 병·컵','캔, 유리병','종이, 골판지'],
+  'a.list.residu':['기저귀, 티슈','오염된 포장재, 스티로폼','분리 어려운 혼합물'],
+  'a.to.organik':'퇴비화 업체','a.to.anorganik':'재활용 업체','a.to.residu':'마을 TPS3R',
+  'a.notice':'배터리·약품·페인트 같은 유해 폐기물은 수거 신청의 ‘대형·특수’로 따로 신청하세요.',
+  'p.eyebrow':'요금','p.h2':'혼자 계약하는 것보다 싸게','p.lead':'수거·처리비·증빙서 포함. 한 달 단위로 쓰세요.','p.perMonth':'/ 월',
+  'p.c1':['숙박업소 추천','격일 수거',['이틀에 한 번 방문','쓰레기 3종 모두 수거','월간 증빙서·QR']],
+  'p.c2':['와룽·카페 추천','매일 수거',['매일 정해진 시간 방문','쓰레기 3종 모두 수거','월간 증빙서·QR']],
+  'p.c3':['하루 봉투 5개 이상','대량 배출',['격일·매일 요금에 추가','첫 달 기록으로 재조정']],
+  'p.note':a=>`추가 수거 1회 ${a} · QRIS 또는 반자르 현금 납부 · 첫 달 봉투 무료`,
+  'cov.eyebrow':'서비스 지역','cov.h2':n=>`${n}곳이 모이면 그 마을에서 시작`,'cov.live':n=>`가입 업소 <b>${n}곳</b>`,'cov.prog':(n,m)=>`${n}/${m}곳`,
+  'faq.h2':'자주 묻는 질문',
+  'faq':[['증빙서에는 무엇이 들어가나요?','수거·하차 사진과 위치, 무게, 처리처의 수령 확인과 허가 정보가 건별로 들어갑니다.'],['한 달만 써도 되나요?','네. 약정이 없고, 쌓인 증빙은 해지 후에도 볼 수 있습니다.'],['쉬는 날에는요?','수거 신청에서 ‘쉬기’를 고르세요. 니에피처럼 마을 전체가 쉬는 날은 미리 알려 드립니다.'],['분리를 잘못하면요?','안내 메시지가 갑니다. 계속되면 처리처가 받지 않아 증빙에 빈칸이 생깁니다.']],
+  'cta.h2':'다음 점검 전에 시작하세요','cta.p':'등록 후 보통 3일 안에 첫 수거',
+  'j.eyebrow':'업소 등록','j.h1':'우리 업소 등록하기','j.lead':'5객실 이하 숙박업소, 소형 와룽·카페 대상','j.steps':['업소','배출','요금','확인'],
+  'j.l1':'업소 정보','j.l2':'배출 정보','j.l3':'요금·결제','j.l4':'입력 내용 확인',
+  'f.name':'업소 이름','f.type':'업종','f.rooms':'객실 수','f.seats':'좌석 수','f.owner':'대표자 이름','f.wa':'WhatsApp 번호',
+  'f.desa':'마을','f.banjar':'반자르','f.otherDesa':'마을 이름','f.addr':'찾아오는 길','f.addrPh':'반자르 회관에서 바다 쪽 200m, 파란 대문','f.map':'Google 지도 링크',
+  'f.select':'선택','f.desaFirst':'마을 먼저 선택','f.otherArea':'기타 지역','f.soonSuffix':' (모집 중)',
+  'f.streams':'배출하는 쓰레기','f.vol':'하루 배출량 (40L 봉투)','f.freq':'수거 주기','f.window':'시간대','f.start':'시작일',
+  'f.pay':'결제 방법','f.qrisSub':'매월 링크 발송','f.cash':'현금','f.cashSub':'반자르 담당자에게','f.agree':'동의',
+  'f.agree1':'수거 기록(사진·위치·무게)을 증빙으로 쓰는 데 동의합니다.','f.agree2':'이용 약관·개인정보 처리방침에 동의합니다.',
+  'btn.prev':'이전','btn.next':'다음','btn.submitJoin':'등록 신청',
+  'j.side':'예상 월 요금','j.sideList':['수거·처리비·증빙서 포함','첫 달 봉투 무료 · 약정 없음'],
+  'pr.base':f=>`기본 수거 · ${f}`,'pr.bulk':'대량 배출','pr.total':'월 합계','pr.sum':'합계',
+  'j.inline':(p,f,bulk)=>`월 <b>${p}</b> · ${f} 수거${bulk?' · 대량 배출':''} · 첫 수거일에 결제`,
+  'e.req':'필수 항목입니다.','e.choose':'골라 주세요.','e.chooseOne':'하나 이상 골라 주세요.','e.num':'숫자로 입력해 주세요.','e.wa':'8로 시작하는 휴대폰 번호를 입력해 주세요.','e.agreeAll':'모두 동의해야 등록할 수 있습니다.',
+  'e.bags':'봉투를 한 개 이상 입력해 주세요.','e.what':'무엇을 버리는지 적어 주세요.','e.age':'만 18세 이상만 지원할 수 있습니다.','e.ktp':'KTP 사진을 올려 주세요.','e.agree':'동의해야 지원할 수 있습니다.',
+  'dn.other':n=>`아직 운영 전인 지역입니다. 대기 명단에 올려 두고 ${n}곳이 모이면 연락드립니다.`,
+  'dn.soon':(name,c,n)=>`${name}는 모집 중입니다 (${c}/${n}곳). ${n}곳이 모이면 시작합니다.`,
+  'rv.biz':'업소','rv.owner':'대표자','rv.loc':'위치','rv.addr':'찾아오는 길','rv.waste':'쓰레기','rv.vol':'배출량','rv.pickup':'수거','rv.pay':'결제','rv.fee':'월 요금',
+  'rv.wait':'(대기)','rv.from':(f,w,d)=>`${f} ${w} · ${d}부터`,'pay.qris':'QRIS','pay.cash':'반자르 현금',
+  'jd.h1':'등록 신청 완료','jd.ref':'접수 번호','jd.t1':'접수','jd.s1':'WhatsApp으로 확인 메시지 발송','jd.t2':'방문 상담','jd.s2':d=>`${d} 전후 · 봉투 전달`,
+  'jd.t3':'첫 수거','jd.t4':'첫 증빙','jd.s4':'처리처 확인 즉시','jd.tw':'대기 명단','jd.sw':n=>`${n}곳이 모이면 연락드립니다`,
+  'jd.again':'다른 업소 등록','toMy':'내 업소로','jd.fee':'월 요금',
+  'rq.eyebrow':'수거 신청','rq.h1':'필요할 때 추가로','rq.lead':'정기 수거는 따로 신청하지 않아도 됩니다.',
+  'rq.noReg':'등록된 업소가 없어 예시 업소로 보여 드려요.','rq.regLink':'업소 등록 →',
+  'f.biz':'업소','f.rtype':'종류','rt.extra':'추가 수거','rt.bulky':'대형·특수','rt.pause':'쉬기','rt.extraSub':p=>`${p} / 회`,'rt.bulkySub':'견적','rt.pauseSub':'무료',
+  'f.date':'날짜','f.until':'종료일','f.untilHelp':'하루만 쉬면 비워 두세요','f.bags':'봉투 수','f.bagsHelp':p=>`4개마다 ${p}`,
+  'f.what':'품목','f.whatPh':'매트리스 1개, 야자잎 묶음 3개','f.photo':'사진 (선택)','f.note':'메모','f.notePh':'뒷문에 내놓을게요','btn.sendReq':'신청하기',
+  'rq.price':'요금','rq.list':'신청 내역','none':'아직 없습니다.',
+  'rp.pauseSub':'대신 다른 날 추가 수거 1회 무료','rp.bulkySub':'2시간 안에 WhatsApp으로 안내','rp.extraSub':n=>`봉투 ${n}개 · 다음 달 요금에 청구`,
+  'rd.h1':'신청 완료','rd.paused':'수거 쉼','rd.quote':'견적 안내','rd.within2h':'2시간 안에 WhatsApp','rd.pickup':'수거','rd.assign':'수거인 배정','rd.pp':'수거·증빙','rd.again':'다른 신청',
+  'cr.eyebrow':'수거인 소개','cr.h1':'우리 마을 수거인이 되어 주세요','cr.lead':'마을 업소를 정해진 경로로 돌며 수거하고, 처리처에 내려놓는 일입니다.',
+  'cr.points':p=>[['안정적인 일감','빈고가 같은 마을 업소를 묶어 매일 경로를 짜 드립니다.'],['방문할 때마다 수입',`1곳 ${p} · 매주 금요일 정산`],['장비와 교육 제공','기록용 앱, 조끼, 장갑 · 반나절 교육']],
+  'cr.steps':'지원 절차','cr.stepList':[['온라인 지원','5분'],['서류 확인','2일 안에 WhatsApp'],['마을 면담','반자르 회관'],['교육 (반나절)','앱 사용, 분리, 하차 방법'],['첫 경로 배정','2주간 선배와 동행']],
+  'cr.received':'접수','calc.h':'예상 월 수입','calc.lbl':n=>`하루 <b id="calc-n">${n}</b>곳 · 주 6일`,'calc.l1':p=>`방문 1곳 ${p}`,'calc.l2':p=>`추가 수거 1회 ${p}`,
+  'cr.req':'지원 자격','cr.reqList':['만 18세 이상 마을 주민','오토바이 운전 (SIM C)','안드로이드 휴대폰 (없으면 대여)'],
+  'ca.eyebrow':'지원하기','ca.h1':'수거인 지원서','ca.l1':'기본 정보','ca.l2':'근무 조건','ca.l3':'서류·정산',
+  'ca.name':'이름 (KTP 기준)','ca.desa':'사는 마을','ca.age':'나이','ca.vehicle':'운반 수단',
+  'ca.v':[['motor-box','오토바이+짐칸','봉투 8–10개'],['motor','오토바이','짐칸 대여 가능'],['pickup','픽업트럭','봉투 30개+'],['none','없음','차량 상담']],
+  'ca.days':'가능 요일','ca.dayNames':['월','화','수','목','금','토','일'],'ca.time':'가능 시간','ca.t1':'오전 7–11시','ca.t2':'오후 2–5시',
+  'ca.phone':'안드로이드 휴대폰','ca.yes':'있음','ca.no':'없음','ca.lend':'대여 가능','ca.ktp':'KTP 사진','ca.ktpHelp':'신원 확인 후 삭제합니다.',
+  'ca.payout':'정산 방법','ca.bank':'은행 계좌','ca.acct':'계좌·번호','ca.agree':'수거 기록이 업주 증빙으로 쓰이는 데 동의합니다.','ca.submit':'지원서 제출',
+  'ca.note':['업소에서 수거를 맡기려면 ','업소 등록','으로 가세요.'],
+  'ad.h1':'지원 완료','ad.again':'새 지원서','ad.status':'지원 현황',
+  'cs.h1':'내 지원 현황','cs.empty':'아직 제출한 지원서가 없습니다.',
+  'my.eyebrow':'내 업소','my.reqs':'신청 내역','my.reqBtn':'수거 신청','my.progress':'진행 상황','my.registered':'등록 접수','my.visit':'방문 상담','my.visitSub':'WhatsApp으로 일정 안내',
+  'my.plan':'이용 정보','my.fee':'요금','my.feeVal':p=>`${p}/월`,'my.empty':'첫 수거가 확인되면 증빙서가 생깁니다.',
+  'my.next':'다음 수거','my.extraBtn':'추가·쉬기','my.preview':'점검 화면 미리보기','my.feed':'알림','my.recent':'최근 수거','my.billing':'요금','my.payment':'결제',
+  'fd.pick':l=>`수거 완료 · ${l}`,'fd.mixed':s=>`${s}에 다른 쓰레기가 섞여 있었어요.`,'fd.conf':s=>`${s} 처리 확인 · 증빙 반영`,
+  'v.eyebrow':'증빙 확인','v.h1':'처리 증빙 확인','v.lead':'점검 담당자가 QR로 여는 페이지입니다.','v.check':'확인','v.examples':'예시',
+  'v.nf':'코드를 찾을 수 없습니다','v.eg':x=>`예: ${x}`,'v.valid':'유효한 증빙','v.sum':(n,p,a,b)=>`${n} · ${p} · 처리 확인 ${a}/${b}건`,
+  'v.biz':'업소','v.loc':'위치','v.joined':'가입 · 주기','v.code':'증빙 코드','v.byType':'종류별 처리','v.type':'종류','v.conf':'확인','v.weight':'무게','v.fac':'처리처 · 허가',
+  'v.log':'건별 기록','v.date':'날짜','v.amt':'양','v.pick':'수거','v.drop':'하차','v.facChk':'처리처 확인','v.note':'사진·위치는 촬영 즉시 저장되며 수정할 수 없습니다.',
+  't.join':'등록 신청이 접수됐습니다.','t.req':'수거 신청이 접수됐습니다.','t.app':'지원서가 접수됐습니다.'
+},
+en:{
+  'nav.home':'About','nav.join':'Register','nav.request':'Request','nav.my':'My business','nav.verify':'Verify',
+  'nav.crew':'About','nav.crewApply':'Apply','nav.crewStatus':'My application',
+  'role.biz':'Get pickup','role.crew':'Collector','role.aria':'Choose who you are',
+  'tag.biz':'Businesses','tag.crew':'Collectors','tag.check':'Inspectors',
+  'foot.about':'Prototype · businesses, people and prices are examples','foot.contact':'WhatsApp','foot.hours':'Mon–Sat 8am–5pm','foot.lang':'Language',
+  'st.organik':'Organic','st.anorganik':'Recyclables','st.residu':'Residual',
+  'sd.organik':'Food & offering scraps','sd.anorganik':'Plastic, cans, paper','sd.residu':'Diapers, tissues, etc.',
+  'bags':n=>`${n} bags`,'xConfirmed':n=>`${n} confirmed`,'times':n=>`${n}`,
+  'ls.loading':'In transit','ls.dropped':'Awaiting facility','ls.confirmed':'Confirmed','ls.rejected':'Rejected',
+  'c.ok':'Confirmed','c.wait':'Pending','c.received':'Received','c.paid':'Paid','c.live':'Live','c.soon':'Gathering','c.review':'Under review',
+  'freq.alt':'Every other day','freq.daily':'Daily',
+  'type.homestay':'Homestay','type.guesthouse':'Guesthouse','type.warung':'Warung','type.cafe':'Café','type.resto':'Small restaurant',
+  'type.homestaySub':'Up to 5 rooms','type.restoSub':'Up to 30 seats',
+  'rooms':n=>`${n} rooms`,'seats':n=>`${n} seats`,
+  'vol.s':'1–2','vol.m':'3–4','vol.l':'5+','volSum':v=>`${v} bags a day`,
+  'example':'Examples','exampleSuffix':' (example)',
+  'period':'Nov 1–8','month':'November',
+  'proof.title':'Waste disposal proof','proof.conf':(a,b)=>`Confirmed ${a}/${b}`,'proof.show':'Show this QR at inspections',
+  'h.h1':'Your <em>village</em> picks up.<br>Proof comes automatically.',
+  'h.lead':'We group small homestays, warungs and cafés and connect them with village collectors and licensed facilities. Organic and residual waste included.',
+  'h.ctaJoin':'Register your business','h.ctaCrew':'Work as a collector',
+  'h.f1':'No contract','h.f2':p=>`From ${p}/month`,'h.f3':'WhatsApp updates',
+  'h.bubble':"The facility received your organic waste. It's in this month's proof.",
+  'rc.bizTitle':'I need waste pickup','rc.bizSub':'Homestay, warung & café owners','rc.bizList':['Regular pickup after sign-up','Request extra pickups or pauses','Monthly disposal proof'],
+  'rc.bizBtn1':'Register','rc.bizBtn2':'Request',
+  'rc.crewTitle':'I want to work as a collector','rc.crewSub':'Any village resident','rc.crewList':p=>[`${p} per stop`,'Fixed route in your village','Gear and training provided'],
+  'rc.crewBtn1':'Apply','rc.crewBtn2':'Learn more',
+  'r.eyebrow':'2026 rules','r.h2':'Throwing it out is no longer enough',
+  'r.w1':'Apr 2026','r.t1':'Organic waste banned from landfill','r.d1':'Food and offering scraps need separate treatment.',
+  'r.w2':'Jul 2026','r.t2':'Mandatory sorting','r.d2':'Sort it, and prove it was processed.',
+  'r.w3':'Now','r.t3':'You need records for inspections','r.d3':'Bin-Go logs one with every pickup.',
+  's.eyebrow':'How it works','s.h2':'Four steps from sign-up to proof',
+  's.list':[['Sign up','5 minutes online, or at your banjar.'],['Home visit','Sorting guide and colored bags.'],['Pickup','Photo and weight logged, WhatsApp update.'],['Proof','Added once the facility confirms.']],
+  'a.eyebrow':'What we take','a.h2':'Just sort into three',
+  'a.bag.organik':'Green bag','a.bag.anorganik':'Yellow bag','a.bag.residu':'Gray bag',
+  'a.list.organik':['Food and kitchen scraps','Banana leaves, canang offerings','Garden leaves and twigs'],
+  'a.list.anorganik':['Plastic bottles and cups','Cans, glass bottles','Paper, cardboard'],
+  'a.list.residu':['Diapers, tissues','Dirty packaging, styrofoam','Hard-to-sort mixed waste'],
+  'a.to.organik':'Composting facility','a.to.anorganik':'Recycler','a.to.residu':'Village TPS3R',
+  'a.notice':'For hazardous waste like batteries, medicine or paint, choose “Bulky / special” under Request.',
+  'p.eyebrow':'Pricing','p.h2':'Cheaper than going it alone','p.lead':'Pickup, processing and proof included. Month to month.','p.perMonth':'/ month',
+  'p.c1':['For homestays','Every other day',['A visit every 2 days','All three waste types','Monthly proof + QR']],
+  'p.c2':['For warungs & cafés','Daily',['Same time every day','All three waste types','Monthly proof + QR']],
+  'p.c3':['5+ bags a day','High volume',['Added to either plan','Adjusted after month one']],
+  'p.note':a=>`Extra pickup ${a} · Pay by QRIS or cash via banjar · Free bags in month one`,
+  'cov.eyebrow':'Service areas','cov.h2':n=>`A village starts at ${n} sign-ups`,'cov.live':n=>`<b>${n}</b> businesses`,'cov.prog':(n,m)=>`${n}/${m}`,
+  'faq.h2':'Questions',
+  'faq':[['What goes into the proof?','Pickup and drop-off photos with location, weight, the facility’s confirmation and its permit, for every pickup.'],['Can I use it for one month?','Yes. There is no contract, and your proof stays viewable after you stop.'],['What about days off?','Choose “Pause” under Request. Village-wide days like Nyepi are announced in advance.'],['What if I sort it wrong?','You get a reminder. If it keeps happening, the facility may refuse it and your proof gets gaps.']],
+  'cta.h2':'Start before your next inspection','cta.p':'First pickup usually within 3 days',
+  'j.eyebrow':'Register','j.h1':'Register your business','j.lead':'For stays up to 5 rooms and small warungs & cafés','j.steps':['Business','Waste','Plan','Review'],
+  'j.l1':'Business details','j.l2':'Waste details','j.l3':'Plan & payment','j.l4':'Review',
+  'f.name':'Business name','f.type':'Type','f.rooms':'Rooms','f.seats':'Seats','f.owner':'Owner name','f.wa':'WhatsApp number',
+  'f.desa':'Village (desa)','f.banjar':'Banjar','f.otherDesa':'Village name','f.addr':'Directions','f.addrPh':'200 m seaward from the banjar hall, blue gate','f.map':'Google Maps link',
+  'f.select':'Select','f.desaFirst':'Choose a village first','f.otherArea':'Other area','f.soonSuffix':' (gathering)',
+  'f.streams':'Waste types','f.vol':'Bags per day (40 L)','f.freq':'Pickup frequency','f.window':'Time window','f.start':'Start date',
+  'f.pay':'Payment','f.qrisSub':'Monthly payment link','f.cash':'Cash','f.cashSub':'Via your banjar','f.agree':'Consent',
+  'f.agree1':'I agree that pickup records (photo, location, weight) are used as proof.','f.agree2':'I agree to the terms and privacy policy.',
+  'btn.prev':'Back','btn.next':'Next','btn.submitJoin':'Submit',
+  'j.side':'Estimated monthly fee','j.sideList':['Pickup, processing and proof included','Free bags in month one · No contract'],
+  'pr.base':f=>`Base pickup · ${f}`,'pr.bulk':'High volume','pr.total':'Monthly total','pr.sum':'Total',
+  'j.inline':(p,f,bulk)=>`<b>${p}</b>/month · ${f}${bulk?' · high volume':''} · paid on first pickup`,
+  'e.req':'Required.','e.choose':'Please choose one.','e.chooseOne':'Choose at least one.','e.num':'Enter a number.','e.wa':'Enter a mobile number starting with 8.','e.agreeAll':'Please agree to both to continue.',
+  'e.bags':'Enter at least one bag.','e.what':"Tell us what you're throwing out.",'e.age':'You must be 18 or older.','e.ktp':'Upload your KTP photo.','e.agree':'Consent is required.',
+  'dn.other':n=>`We're not here yet. You'll join the waitlist and we'll contact you at ${n} sign-ups.`,
+  'dn.soon':(name,c,n)=>`${name} is gathering sign-ups (${c}/${n}). We start at ${n}.`,
+  'rv.biz':'Business','rv.owner':'Owner','rv.loc':'Location','rv.addr':'Directions','rv.waste':'Waste','rv.vol':'Volume','rv.pickup':'Pickup','rv.pay':'Payment','rv.fee':'Monthly fee',
+  'rv.wait':'(waitlist)','rv.from':(f,w,d)=>`${f} ${w} · from ${d}`,'pay.qris':'QRIS','pay.cash':'Cash via banjar',
+  'jd.h1':'Registration received','jd.ref':'Reference','jd.t1':'Received','jd.s1':'Confirmation sent on WhatsApp','jd.t2':'Home visit','jd.s2':d=>`Around ${d} · bags delivered`,
+  'jd.t3':'First pickup','jd.t4':'First proof','jd.s4':'As soon as the facility confirms','jd.tw':'Waitlist','jd.sw':n=>`We'll contact you at ${n} sign-ups`,
+  'jd.again':'Register another','toMy':'Go to My business','jd.fee':'Monthly fee',
+  'rq.eyebrow':'Request','rq.h1':'Extra pickup when you need it','rq.lead':'Regular pickups happen automatically.',
+  'rq.noReg':'No registered business yet, so this shows an example.','rq.regLink':'Register →',
+  'f.biz':'Business','f.rtype':'Type','rt.extra':'Extra pickup','rt.bulky':'Bulky / special','rt.pause':'Pause','rt.extraSub':p=>`${p} each`,'rt.bulkySub':'Quote','rt.pauseSub':'Free',
+  'f.date':'Date','f.until':'Until','f.untilHelp':'Leave empty for one day','f.bags':'Bags','f.bagsHelp':p=>`${p} per 4 bags`,
+  'f.what':'Items','f.whatPh':'1 mattress, 3 bundles of palm fronds','f.photo':'Photo (optional)','f.note':'Note','f.notePh':"I'll leave it by the back door",'btn.sendReq':'Send request',
+  'rq.price':'Price','rq.list':'My requests','none':'Nothing yet.',
+  'rp.pauseSub':'You get one free extra pickup instead','rp.bulkySub':'Quote on WhatsApp within 2 hours','rp.extraSub':n=>`${n} bags · billed next month`,
+  'rd.h1':'Request received','rd.paused':'Paused','rd.quote':'Quote','rd.within2h':'Within 2 hours on WhatsApp','rd.pickup':'Pickup','rd.assign':'Collector assigned','rd.pp':'Pickup & proof','rd.again':'New request',
+  'cr.eyebrow':'About the job','cr.h1':"Become your village's collector",'cr.lead':'Collect from local businesses on a set route and drop off at licensed facilities.',
+  'cr.points':p=>[['Steady work','Bin-Go groups nearby businesses into a daily route.'],['Paid per stop',`${p} per stop · paid every Friday`],['Gear & training','Logging app, vest, gloves · half-day training']],
+  'cr.steps':'How to join','cr.stepList':[['Apply online','5 minutes'],['Document check','WhatsApp within 2 days'],['Village interview','At the banjar hall'],['Training (half day)','App, sorting, drop-off'],['First route','2 weeks with a mentor']],
+  'cr.received':'Received','calc.h':'Estimated monthly income','calc.lbl':n=>`<b id="calc-n">${n}</b> stops a day · 6 days a week`,'calc.l1':p=>`${p} per stop`,'calc.l2':p=>`${p} per extra pickup`,
+  'cr.req':'Requirements','cr.reqList':['18+ and a local resident','Can ride a motorbike (SIM C)','Android phone (we can lend one)'],
+  'ca.eyebrow':'Apply','ca.h1':'Collector application','ca.l1':'Basics','ca.l2':'Availability','ca.l3':'Documents & payout',
+  'ca.name':'Name (as on KTP)','ca.desa':'Home village','ca.age':'Age','ca.vehicle':'Vehicle',
+  'ca.v':[['motor-box','Motorbike + cargo box','8–10 bags'],['motor','Motorbike','Cargo box available'],['pickup','Pickup truck','30+ bags'],['none','None',"We'll discuss"]],
+  'ca.days':'Days','ca.dayNames':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],'ca.time':'Hours','ca.t1':'7–11 am','ca.t2':'2–5 pm',
+  'ca.phone':'Android phone','ca.yes':'Yes','ca.no':'No','ca.lend':'We can lend one','ca.ktp':'KTP photo','ca.ktpHelp':'Deleted after the ID check.',
+  'ca.payout':'Payout method','ca.bank':'Bank account','ca.acct':'Account / number','ca.agree':'I agree my pickup records are used as proof for businesses.','ca.submit':'Submit application',
+  'ca.note':['Need pickup for your business? ','Register here','.'],
+  'ad.h1':'Application sent','ad.again':'New application','ad.status':'My application',
+  'cs.h1':'My applications','cs.empty':'No applications yet.',
+  'my.eyebrow':'My business','my.reqs':'My requests','my.reqBtn':'Request','my.progress':'Progress','my.registered':'Registered','my.visit':'Home visit','my.visitSub':"We'll schedule on WhatsApp",
+  'my.plan':'Plan','my.fee':'Fee','my.feeVal':p=>`${p}/month`,'my.empty':'Your proof appears after the first confirmed pickup.',
+  'my.next':'Next pickup','my.extraBtn':'Extra / pause','my.preview':'Preview inspector view','my.feed':'Updates','my.recent':'Recent pickups','my.billing':'Billing','my.payment':'Payment',
+  'fd.pick':l=>`Picked up · ${l}`,'fd.mixed':s=>`${s} had other waste mixed in.`,'fd.conf':s=>`${s} confirmed · added to proof`,
+  'v.eyebrow':'Verify','v.h1':'Verify disposal proof','v.lead':'Inspectors open this page from the QR code.','v.check':'Check','v.examples':'Examples',
+  'v.nf':'Code not found','v.eg':x=>`e.g. ${x}`,'v.valid':'Valid proof','v.sum':(n,p,a,b)=>`${n} · ${p} · ${a}/${b} confirmed`,
+  'v.biz':'Business','v.loc':'Location','v.joined':'Joined · frequency','v.code':'Proof code','v.byType':'By waste type','v.type':'Type','v.conf':'Confirmed','v.weight':'Weight','v.fac':'Facility · permit',
+  'v.log':'Pickup log','v.date':'Date','v.amt':'Amount','v.pick':'Pickup','v.drop':'Drop-off','v.facChk':'Facility check','v.note':"Photos and locations are saved on capture and can't be edited.",
+  't.join':'Registration received.','t.req':'Request received.','t.app':'Application received.'
+},
+id:{
+  'nav.home':'Tentang','nav.join':'Daftar usaha','nav.request':'Ajukan','nav.my':'Usaha saya','nav.verify':'Cek bukti',
+  'nav.crew':'Tentang','nav.crewApply':'Melamar','nav.crewStatus':'Status lamaran',
+  'role.biz':'Pesan angkut','role.crew':'Pengangkut','role.aria':'Pilih peran',
+  'tag.biz':'Untuk usaha','tag.crew':'Untuk pengangkut','tag.check':'Untuk pemeriksa',
+  'foot.about':'Prototipe · usaha, orang, dan harga hanya contoh','foot.contact':'WhatsApp','foot.hours':'Sen–Sab 08.00–17.00','foot.lang':'Bahasa',
+  'st.organik':'Organik','st.anorganik':'Anorganik','st.residu':'Residu',
+  'sd.organik':'Sisa makanan & canang','sd.anorganik':'Plastik, kaleng, kertas','sd.residu':'Popok, tisu, dll.',
+  'bags':n=>`${n} kantong`,'xConfirmed':n=>`${n}x dikonfirmasi`,'times':n=>`${n}x`,
+  'ls.loading':'Diangkut','ls.dropped':'Menunggu pengelola','ls.confirmed':'Terkonfirmasi','ls.rejected':'Ditolak',
+  'c.ok':'OK','c.wait':'Menunggu','c.received':'Diterima','c.paid':'Lunas','c.live':'Aktif','c.soon':'Mengumpulkan','c.review':'Ditinjau',
+  'freq.alt':'Dua hari sekali','freq.daily':'Setiap hari',
+  'type.homestay':'Homestay','type.guesthouse':'Guesthouse','type.warung':'Warung','type.cafe':'Kafe','type.resto':'Rumah makan kecil',
+  'type.homestaySub':'Maks. 5 kamar','type.restoSub':'Maks. 30 kursi',
+  'rooms':n=>`${n} kamar`,'seats':n=>`${n} kursi`,
+  'vol.s':'1–2','vol.m':'3–4','vol.l':'5+','volSum':v=>`${v} kantong per hari`,
+  'example':'Contoh','exampleSuffix':' (contoh)',
+  'period':'1–8 Nov','month':'November',
+  'proof.title':'Bukti Pengelolaan Sampah','proof.conf':(a,b)=>`Terkonfirmasi ${a}/${b}`,'proof.show':'Tunjukkan QR ini saat pemeriksaan',
+  'h.h1':'Sampah diangkut <em>bersama desa</em>,<br>bukti tercatat otomatis',
+  'h.lead':'Kami menggabungkan homestay, warung, dan kafe kecil, lalu menghubungkannya dengan pengangkut desa dan pengelola sampah berizin. Organik dan residu juga diterima.',
+  'h.ctaJoin':'Daftarkan usaha','h.ctaCrew':'Jadi pengangkut',
+  'h.f1':'Tanpa kontrak','h.f2':p=>`Mulai ${p}/bulan`,'h.f3':'Kabar via WhatsApp',
+  'h.bubble':'Sampah organik Anda sudah diterima. Bukti bulan ini diperbarui.',
+  'rc.bizTitle':'Saya butuh pengangkutan sampah','rc.bizSub':'Pemilik homestay, warung & kafe','rc.bizList':['Angkut rutin setelah mendaftar','Ajukan angkut tambahan atau libur','Bukti pengelolaan bulanan'],
+  'rc.bizBtn1':'Daftar','rc.bizBtn2':'Ajukan',
+  'rc.crewTitle':'Saya ingin jadi pengangkut','rc.crewSub':'Semua warga desa','rc.crewList':p=>[`${p} per titik`,'Rute tetap di desa sendiri','Peralatan & pelatihan disediakan'],
+  'rc.crewBtn1':'Melamar','rc.crewBtn2':'Selengkapnya',
+  'r.eyebrow':'Aturan 2026','r.h2':'Membuang saja tidak cukup lagi',
+  'r.w1':'Apr 2026','r.t1':'Sampah organik dilarang ke TPA','r.d1':'Sisa makanan dan canang harus diolah terpisah.',
+  'r.w2':'Jul 2026','r.t2':'Wajib pilah sampah','r.d2':'Pilah, lalu buktikan sudah diolah.',
+  'r.w3':'Sekarang','r.t3':'Anda butuh catatan untuk pemeriksaan','r.d3':'Bin-Go mencatatnya setiap kali mengangkut.',
+  's.eyebrow':'Cara kerja','s.h2':'Empat langkah dari daftar sampai bukti',
+  's.list':[['Daftar','5 menit online, atau lewat banjar.'],['Kunjungan','Panduan pilah dan kantong berwarna.'],['Pengangkutan','Foto & berat dicatat, kabar via WhatsApp.'],['Bukti','Masuk begitu pengelola mengonfirmasi.']],
+  'a.eyebrow':'Yang kami angkut','a.h2':'Cukup pilah jadi tiga',
+  'a.bag.organik':'Kantong hijau','a.bag.anorganik':'Kantong kuning','a.bag.residu':'Kantong abu-abu',
+  'a.list.organik':['Sisa makanan dan dapur','Daun pisang, sisa canang','Daun dan ranting kebun'],
+  'a.list.anorganik':['Botol dan gelas plastik','Kaleng, botol kaca','Kertas, kardus'],
+  'a.list.residu':['Popok, tisu','Kemasan kotor, styrofoam','Sampah campuran sulit dipilah'],
+  'a.to.organik':'Pengomposan','a.to.anorganik':'Pendaur ulang','a.to.residu':'TPS3R desa',
+  'a.notice':'Untuk limbah B3 seperti baterai, obat, atau cat, pilih “Besar / khusus” di menu Ajukan.',
+  'p.eyebrow':'Harga','p.h2':'Lebih murah daripada kontrak sendiri','p.lead':'Termasuk angkut, olah, dan bukti. Bayar per bulan.','p.perMonth':'/ bulan',
+  'p.c1':['Untuk homestay','Dua hari sekali',['Datang tiap 2 hari','Ketiga jenis sampah','Bukti bulanan + QR']],
+  'p.c2':['Untuk warung & kafe','Setiap hari',['Jam tetap setiap hari','Ketiga jenis sampah','Bukti bulanan + QR']],
+  'p.c3':['5+ kantong per hari','Volume besar',['Ditambahkan ke paket','Disesuaikan setelah bulan pertama']],
+  'p.note':a=>`Angkut tambahan ${a} · Bayar QRIS atau tunai lewat banjar · Kantong gratis bulan pertama`,
+  'cov.eyebrow':'Wilayah layanan','cov.h2':n=>`Desa dimulai setelah ${n} usaha bergabung`,'cov.live':n=>`<b>${n}</b> usaha`,'cov.prog':(n,m)=>`${n}/${m}`,
+  'faq.h2':'Pertanyaan umum',
+  'faq':[['Apa isi bukti pengelolaan?','Foto angkut dan serah terima beserta lokasi, berat, konfirmasi pengelola, dan izinnya, untuk setiap angkut.'],['Boleh pakai satu bulan saja?','Boleh. Tanpa kontrak, dan bukti tetap bisa dilihat setelah berhenti.'],['Bagaimana dengan hari libur?','Pilih “Libur” di menu Ajukan. Hari libur desa seperti Nyepi kami umumkan lebih dulu.'],['Kalau salah memilah?','Anda akan diingatkan. Kalau terus terjadi, pengelola bisa menolak dan bukti Anda jadi bolong.']],
+  'cta.h2':'Mulai sebelum pemeriksaan berikutnya','cta.p':'Angkut pertama biasanya dalam 3 hari',
+  'j.eyebrow':'Daftar usaha','j.h1':'Daftarkan usaha Anda','j.lead':'Untuk penginapan maks. 5 kamar serta warung & kafe kecil','j.steps':['Usaha','Sampah','Paket','Cek'],
+  'j.l1':'Data usaha','j.l2':'Data sampah','j.l3':'Paket & pembayaran','j.l4':'Periksa data',
+  'f.name':'Nama usaha','f.type':'Jenis usaha','f.rooms':'Jumlah kamar','f.seats':'Jumlah kursi','f.owner':'Nama pemilik','f.wa':'Nomor WhatsApp',
+  'f.desa':'Desa','f.banjar':'Banjar','f.otherDesa':'Nama desa','f.addr':'Petunjuk lokasi','f.addrPh':'200 m ke arah pantai dari balai banjar, pagar biru','f.map':'Tautan Google Maps',
+  'f.select':'Pilih','f.desaFirst':'Pilih desa dulu','f.otherArea':'Wilayah lain','f.soonSuffix':' (mengumpulkan)',
+  'f.streams':'Jenis sampah','f.vol':'Kantong per hari (40 L)','f.freq':'Frekuensi angkut','f.window':'Jam angkut','f.start':'Tanggal mulai',
+  'f.pay':'Pembayaran','f.qrisSub':'Tautan bayar bulanan','f.cash':'Tunai','f.cashSub':'Lewat banjar','f.agree':'Persetujuan',
+  'f.agree1':'Saya setuju catatan angkut (foto, lokasi, berat) dipakai sebagai bukti.','f.agree2':'Saya setuju dengan syarat layanan & kebijakan privasi.',
+  'btn.prev':'Kembali','btn.next':'Lanjut','btn.submitJoin':'Kirim pendaftaran',
+  'j.side':'Perkiraan biaya bulanan','j.sideList':['Termasuk angkut, olah, dan bukti','Kantong gratis bulan pertama · Tanpa kontrak'],
+  'pr.base':f=>`Angkut dasar · ${f}`,'pr.bulk':'Volume besar','pr.total':'Total per bulan','pr.sum':'Total',
+  'j.inline':(p,f,bulk)=>`<b>${p}</b>/bulan · ${f}${bulk?' · volume besar':''} · bayar saat angkut pertama`,
+  'e.req':'Wajib diisi.','e.choose':'Silakan pilih.','e.chooseOne':'Pilih minimal satu.','e.num':'Masukkan angka.','e.wa':'Masukkan nomor HP yang diawali 8.','e.agreeAll':'Setujui keduanya untuk lanjut.',
+  'e.bags':'Isi minimal satu kantong.','e.what':'Tulis barang yang dibuang.','e.age':'Minimal 18 tahun.','e.ktp':'Unggah foto KTP.','e.agree':'Persetujuan diperlukan.',
+  'dn.other':n=>`Layanan belum tersedia di sini. Anda masuk daftar tunggu; kami hubungi setelah ${n} usaha bergabung.`,
+  'dn.soon':(name,c,n)=>`${name} sedang mengumpulkan usaha (${c}/${n}). Mulai setelah ${n} usaha.`,
+  'rv.biz':'Usaha','rv.owner':'Pemilik','rv.loc':'Lokasi','rv.addr':'Petunjuk lokasi','rv.waste':'Sampah','rv.vol':'Volume','rv.pickup':'Angkut','rv.pay':'Pembayaran','rv.fee':'Biaya bulanan',
+  'rv.wait':'(daftar tunggu)','rv.from':(f,w,d)=>`${f} ${w} · mulai ${d}`,'pay.qris':'QRIS','pay.cash':'Tunai lewat banjar',
+  'jd.h1':'Pendaftaran diterima','jd.ref':'No. referensi','jd.t1':'Diterima','jd.s1':'Konfirmasi dikirim via WhatsApp','jd.t2':'Kunjungan','jd.s2':d=>`Sekitar ${d} · kantong diantar`,
+  'jd.t3':'Angkut pertama','jd.t4':'Bukti pertama','jd.s4':'Begitu pengelola mengonfirmasi','jd.tw':'Daftar tunggu','jd.sw':n=>`Kami hubungi setelah ${n} usaha bergabung`,
+  'jd.again':'Daftarkan usaha lain','toMy':'Ke Usaha saya','jd.fee':'Biaya bulanan',
+  'rq.eyebrow':'Ajukan','rq.h1':'Angkut tambahan saat perlu','rq.lead':'Angkut rutin berjalan otomatis.',
+  'rq.noReg':'Belum ada usaha terdaftar, jadi ini contoh.','rq.regLink':'Daftar →',
+  'f.biz':'Usaha','f.rtype':'Jenis','rt.extra':'Angkut tambahan','rt.bulky':'Besar / khusus','rt.pause':'Libur','rt.extraSub':p=>`${p} per kali`,'rt.bulkySub':'Penawaran','rt.pauseSub':'Gratis',
+  'f.date':'Tanggal','f.until':'Sampai','f.untilHelp':'Kosongkan jika hanya sehari','f.bags':'Jumlah kantong','f.bagsHelp':p=>`${p} per 4 kantong`,
+  'f.what':'Barang','f.whatPh':'1 kasur, 3 ikat pelepah kelapa','f.photo':'Foto (opsional)','f.note':'Catatan','f.notePh':'Saya taruh di pintu belakang','btn.sendReq':'Kirim',
+  'rq.price':'Biaya','rq.list':'Riwayat','none':'Belum ada.',
+  'rp.pauseSub':'Gratis 1x angkut tambahan di hari lain','rp.bulkySub':'Penawaran via WhatsApp dalam 2 jam','rp.extraSub':n=>`${n} kantong · ditagih bulan depan`,
+  'rd.h1':'Permintaan diterima','rd.paused':'Libur','rd.quote':'Penawaran','rd.within2h':'Dalam 2 jam via WhatsApp','rd.pickup':'Angkut','rd.assign':'Pengangkut ditentukan','rd.pp':'Angkut & bukti','rd.again':'Ajukan lagi',
+  'cr.eyebrow':'Tentang pekerjaan','cr.h1':'Jadi pengangkut di desa Anda','cr.lead':'Angkut sampah dari usaha di desa dengan rute tetap, lalu antar ke pengelola berizin.',
+  'cr.points':p=>[['Kerja tetap','Bin-Go menyusun rute harian dari usaha di desa.'],['Dibayar per titik',`${p} per titik · dibayar tiap Jumat`],['Peralatan & pelatihan','Aplikasi, rompi, sarung tangan · pelatihan setengah hari']],
+  'cr.steps':'Alur melamar','cr.stepList':[['Melamar online','5 menit'],['Cek dokumen','WhatsApp dalam 2 hari'],['Wawancara desa','Di balai banjar'],['Pelatihan (setengah hari)','Aplikasi, pilah, serah terima'],['Rute pertama','2 minggu didampingi senior']],
+  'cr.received':'Diterima','calc.h':'Perkiraan penghasilan','calc.lbl':n=>`<b id="calc-n">${n}</b> titik per hari · 6 hari seminggu`,'calc.l1':p=>`${p} per titik`,'calc.l2':p=>`${p} per angkut tambahan`,
+  'cr.req':'Syarat','cr.reqList':['18+ dan warga setempat','Bisa naik motor (SIM C)','HP Android (bisa dipinjamkan)'],
+  'ca.eyebrow':'Melamar','ca.h1':'Formulir pengangkut','ca.l1':'Data diri','ca.l2':'Ketersediaan','ca.l3':'Dokumen & pembayaran',
+  'ca.name':'Nama (sesuai KTP)','ca.desa':'Desa tempat tinggal','ca.age':'Umur','ca.vehicle':'Kendaraan',
+  'ca.v':[['motor-box','Motor + bak','8–10 kantong'],['motor','Motor','Bak bisa dipinjam'],['pickup','Mobil bak','30+ kantong'],['none','Tidak ada','Kita diskusikan']],
+  'ca.days':'Hari','ca.dayNames':['Sen','Sel','Rab','Kam','Jum','Sab','Min'],'ca.time':'Jam','ca.t1':'07.00–11.00','ca.t2':'14.00–17.00',
+  'ca.phone':'HP Android','ca.yes':'Ada','ca.no':'Tidak ada','ca.lend':'Bisa dipinjamkan','ca.ktp':'Foto KTP','ca.ktpHelp':'Dihapus setelah verifikasi.',
+  'ca.payout':'Metode pembayaran','ca.bank':'Rekening bank','ca.acct':'No. rekening / HP','ca.agree':'Saya setuju catatan angkut dipakai sebagai bukti usaha.','ca.submit':'Kirim lamaran',
+  'ca.note':['Butuh angkut untuk usaha? ','Daftar di sini','.'],
+  'ad.h1':'Lamaran terkirim','ad.again':'Lamaran baru','ad.status':'Status lamaran',
+  'cs.h1':'Lamaran saya','cs.empty':'Belum ada lamaran.',
+  'my.eyebrow':'Usaha saya','my.reqs':'Riwayat permintaan','my.reqBtn':'Ajukan','my.progress':'Progres','my.registered':'Terdaftar','my.visit':'Kunjungan','my.visitSub':'Jadwal via WhatsApp',
+  'my.plan':'Paket','my.fee':'Biaya','my.feeVal':p=>`${p}/bulan`,'my.empty':'Bukti muncul setelah angkut pertama dikonfirmasi.',
+  'my.next':'Angkut berikutnya','my.extraBtn':'Tambah / libur','my.preview':'Lihat tampilan pemeriksa','my.feed':'Notifikasi','my.recent':'Angkut terakhir','my.billing':'Tagihan','my.payment':'Pembayaran',
+  'fd.pick':l=>`Sudah diangkut · ${l}`,'fd.mixed':s=>`${s} masih tercampur sampah lain.`,'fd.conf':s=>`${s} terkonfirmasi · masuk bukti`,
+  'v.eyebrow':'Cek bukti','v.h1':'Verifikasi bukti pengelolaan','v.lead':'Pemeriksa membuka halaman ini lewat QR.','v.check':'Cek','v.examples':'Contoh',
+  'v.nf':'Kode tidak ditemukan','v.eg':x=>`contoh: ${x}`,'v.valid':'Bukti valid','v.sum':(n,p,a,b)=>`${n} · ${p} · terkonfirmasi ${a}/${b}`,
+  'v.biz':'Usaha','v.loc':'Lokasi','v.joined':'Bergabung · frekuensi','v.code':'Kode bukti','v.byType':'Per jenis sampah','v.type':'Jenis','v.conf':'Konfirmasi','v.weight':'Berat','v.fac':'Pengelola · izin',
+  'v.log':'Catatan per angkut','v.date':'Tanggal','v.amt':'Jumlah','v.pick':'Angkut','v.drop':'Serah','v.facChk':'Konfirmasi','v.note':'Foto dan lokasi tersimpan saat diambil dan tidak bisa diubah.',
+  't.join':'Pendaftaran diterima.','t.req':'Permintaan diterima.','t.app':'Lamaran diterima.'
+}};
+function t(k,...a){const v=(I18N[lang]&&k in I18N[lang])?I18N[lang][k]:I18N.ko[k];return typeof v==='function'?v(...a):(v??k);}
+
 const TODAY='2026-11-08', MONTH='2026-11';
-const STREAMS={organik:{id:'Organik',ko:'유기물'},anorganik:{id:'Anorganik',ko:'재활용품'},residu:{id:'Residu',ko:'잔재물'}};
 const SKEYS=['organik','anorganik','residu'];
 const PROCESSORS=[
-  {id:'p1',name:'TPS3R Pererenan Lestari',kind:'마을 TPS3R',streams:['anorganik','residu'],lat:-8.64018,lng:115.13012,staff:'Ibu Luh Sri',permit:'SK Perbekel Pererenan No. 12/2024 (예시)'},
-  {id:'p2',name:'Kompos Subak Mekar',kind:'유기물 처리 업체',streams:['organik'],lat:-8.63310,lng:115.13880,staff:'Pak Wayan Dharma',permit:'NIB 9120 0000 0000 (예시)'},
-  {id:'p3',name:'Bank Sampah Sari Mertha',kind:'재활용 업체',streams:['anorganik'],lat:-8.64580,lng:115.13520,staff:'Ibu Ketut Sinta',permit:'SK DLH Kab. Badung (예시)'}
+  {id:'p1',name:'TPS3R Pererenan Lestari',streams:['anorganik','residu'],staff:'Ibu Luh Sri',permit:'SK Perbekel Pererenan No. 12/2024'},
+  {id:'p2',name:'Kompos Subak Mekar',streams:['organik'],staff:'Pak Wayan Dharma',permit:'NIB 9120 0000 0000'},
+  {id:'p3',name:'Bank Sampah Sari Mertha',streams:['anorganik'],staff:'Ibu Ketut Sinta',permit:'SK DLH Kab. Badung'}
 ];
 const COLLECTORS=[{id:'c1',name:'Made Suarta',short:'Made'},{id:'c2',name:'Kadek Arta',short:'Kadek'}];
 const BIZ=[
-  {id:'b1',name:'Pondok Sari Homestay',type:'homestay',typeKo:'홈스테이 4실',owner:'Ibu Wayan Sari',banjar:'Banjar Delod',desa:'Pererenan',collector:'c1',plan:'alt',fee:150000,streams:['organik','anorganik','residu'],joined:'2026-07-14',window:'07:00–09:00'},
-  {id:'b2',name:'Warung Bu Komang',type:'warung',typeKo:'와룽',owner:'Ibu Komang Ayu',banjar:'Banjar Delod',desa:'Pererenan',collector:'c1',plan:'daily',fee:220000,streams:['organik','anorganik','residu'],joined:'2026-07-02',window:'07:00–09:00'},
-  {id:'b3',name:'Kopi Sawah Pererenan',type:'cafe',typeKo:'카페',owner:'Pak Putu Eka',banjar:'Banjar Tengah',desa:'Pererenan',collector:'c1',plan:'daily',fee:220000,streams:['organik','anorganik','residu'],joined:'2026-08-05',window:'09:00–11:00'},
-  {id:'b4',name:'Rumah Ketut Guesthouse',type:'homestay',typeKo:'게스트하우스 5실',owner:'Pak Ketut Raka',banjar:'Banjar Tengah',desa:'Pererenan',collector:'c1',plan:'alt',fee:150000,streams:['organik','anorganik','residu'],joined:'2026-07-20',window:'07:00–09:00'},
-  {id:'b5',name:'Warung Babi Guling Pak Nyoman',type:'warung',typeKo:'와룽',owner:'Pak Nyoman Sudi',banjar:'Banjar Tengah',desa:'Pererenan',collector:'c1',plan:'daily',fee:220000,streams:['organik','residu'],joined:'2026-09-01',window:'09:00–11:00'},
-  {id:'b6',name:'Damai Homestay',type:'homestay',typeKo:'홈스테이 3실',owner:'Ibu Made Rai',banjar:'Banjar Kaja',desa:'Pererenan',collector:'c2',plan:'alt',fee:150000,streams:['organik','anorganik','residu'],joined:'2026-07-10',window:'07:00–09:00'},
-  {id:'b7',name:'Kafe Lumbung',type:'cafe',typeKo:'카페',owner:'Pak Gede Arsa',banjar:'Banjar Kaja',desa:'Pererenan',collector:'c2',plan:'daily',fee:220000,streams:['organik','anorganik','residu'],joined:'2026-08-18',window:'09:00–11:00'},
-  {id:'b8',name:'Warung Nasi Men Sari',type:'warung',typeKo:'와룽',owner:'Men Sari',banjar:'Banjar Kaja',desa:'Pererenan',collector:'c2',plan:'daily',fee:220000,streams:['organik','anorganik'],joined:'2026-09-12',window:'07:00–09:00'}
+  {id:'b1',name:'Pondok Sari Homestay',type:'homestay',kind:'homestay',size:4,owner:'Ibu Wayan Sari',banjar:'Banjar Delod',desa:'Pererenan',collector:'c1',plan:'alt',fee:150000,streams:['organik','anorganik','residu'],joined:'2026-07-14',window:'07:00–09:00'},
+  {id:'b2',name:'Warung Bu Komang',type:'warung',kind:'warung',owner:'Ibu Komang Ayu',banjar:'Banjar Delod',desa:'Pererenan',collector:'c1',plan:'daily',fee:220000,streams:['organik','anorganik','residu'],joined:'2026-07-02',window:'07:00–09:00'},
+  {id:'b3',name:'Kopi Sawah Pererenan',type:'cafe',kind:'cafe',owner:'Pak Putu Eka',banjar:'Banjar Tengah',desa:'Pererenan',collector:'c1',plan:'daily',fee:220000,streams:['organik','anorganik','residu'],joined:'2026-08-05',window:'09:00–11:00'},
+  {id:'b4',name:'Rumah Ketut Guesthouse',type:'homestay',kind:'guesthouse',size:5,owner:'Pak Ketut Raka',banjar:'Banjar Tengah',desa:'Pererenan',collector:'c1',plan:'alt',fee:150000,streams:['organik','anorganik','residu'],joined:'2026-07-20',window:'07:00–09:00'},
+  {id:'b5',name:'Warung Babi Guling Pak Nyoman',type:'warung',kind:'warung',owner:'Pak Nyoman Sudi',banjar:'Banjar Tengah',desa:'Pererenan',collector:'c1',plan:'daily',fee:220000,streams:['organik','residu'],joined:'2026-09-01',window:'09:00–11:00'},
+  {id:'b6',name:'Damai Homestay',type:'homestay',kind:'homestay',size:3,owner:'Ibu Made Rai',banjar:'Banjar Kaja',desa:'Pererenan',collector:'c2',plan:'alt',fee:150000,streams:['organik','anorganik','residu'],joined:'2026-07-10',window:'07:00–09:00'},
+  {id:'b7',name:'Kafe Lumbung',type:'cafe',kind:'cafe',owner:'Pak Gede Arsa',banjar:'Banjar Kaja',desa:'Pererenan',collector:'c2',plan:'daily',fee:220000,streams:['organik','anorganik','residu'],joined:'2026-08-18',window:'09:00–11:00'},
+  {id:'b8',name:'Warung Nasi Men Sari',type:'warung',kind:'warung',owner:'Men Sari',banjar:'Banjar Kaja',desa:'Pererenan',collector:'c2',plan:'daily',fee:220000,streams:['organik','anorganik'],joined:'2026-09-12',window:'07:00–09:00'}
 ];
 BIZ.forEach((b,i)=>{b.lat=+(-8.6386-(i%4)*0.0021-(i>3?0.0011:0)).toFixed(5);b.lng=+(115.1262+(i%3)*0.0027+(i>3?0.0019:0)).toFixed(5);});
 const DESA=[
@@ -518,29 +845,29 @@ const OPEN_AT=15;
 const PROC=Object.fromEntries(PROCESSORS.map(p=>[p.id,p]));
 const BIZM=Object.fromEntries(BIZ.map(b=>[b.id,b]));
 const COLM=Object.fromEntries(COLLECTORS.map(c=>[c.id,c]));
-const TYPE={homestay:'홈스테이·게스트하우스',warung:'와룽',cafe:'카페',resto:'기타 소형 식당'};
-const FREQ={alt:'격일',daily:'매일'};
-const VOL={s:'하루 봉투 1–2개',m:'하루 봉투 3–4개',l:'하루 봉투 5개 이상'};
 
 /* helpers */
 const pad=n=>String(n).padStart(2,'0');
 const hm=m=>pad(Math.floor(m/60))+':'+pad(m%60);
-const idt=t=>t.replace(':','.');
-const fmt=n=>Number(n).toLocaleString('id-ID',{maximumFractionDigits:1});
+const fmt=n=>Number(n).toLocaleString(LOCALE[lang],{maximumFractionDigits:1});
 const kg=n=>fmt(n)+' kg';
 const rp=n=>'Rp '+Math.round(n).toLocaleString('id-ID');
-const dk=d=>`${+d.slice(5,7)}월 ${+d.slice(8)}일`;
+const dfmt=(d,o)=>{try{return new Intl.DateTimeFormat(LOCALE[lang],{timeZone:'UTC',...o}).format(new Date(d+'T00:00:00Z'));}catch(e){return d;}};
+const dk=d=>dfmt(d,{month:'short',day:'numeric'});
+const dkw=d=>dfmt(d,{month:'short',day:'numeric',weekday:'short'});
+const dmd=d=>`${+d.slice(5,7)}/${+d.slice(8)}`;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const scheduled=(b,date)=>b.plan==='daily'||(+date.slice(8))%2===0;
 const sumKg=a=>Math.round(a.reduce((s,p)=>s+p.kg,0)*10)/10;
-const stTag=s=>`<span class="st" style="--c:var(--${s})">${STREAMS[s].ko}</span>`;
-const chip=(k,t)=>`<span class="chip ${k}">${t}</span>`;
+const sName=s=>t('st.'+s);
+const stTag=s=>`<span class="st" style="--c:var(--${s})">${sName(s)}</span>`;
+const chip=(k,x)=>`<span class="chip ${k}">${x}</span>`;
+const typeLabel=b=>t('type.'+b.kind)+(b.size?' · '+t('rooms',b.size):'');
+const permit=P=>`${P.permit} (${t('example').toLowerCase()})`;
 function hash4(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(36).toUpperCase().slice(-4).padStart(4,'X');}
 const certCode=b=>`BG-2611-${b.id.toUpperCase()}-${hash4(b.id+b.name)}`;
 const rid=p=>p+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
 const addDays=(d,n)=>{const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10);};
-const DOW=['일','월','화','수','목','금','토'];
-const dkw=d=>`${dk(d)} (${DOW[new Date(d+'T00:00:00Z').getUTCDay()]})`;
 
 /* seeded history: proof data for the example businesses */
 function seed(){
@@ -580,7 +907,8 @@ function seed(){
 }
 const H=seed();
 const loadOf=id=>H.loads.find(l=>l.id===id);
-const LSTAT={loading:['info','운반 중'],dropped:['wait','처리처 확인 대기'],confirmed:['ok','처리 확인'],rejected:['bad','반려']};
+const LK={loading:'info',dropped:'wait',confirmed:'ok',rejected:'bad'};
+const lstat=s=>[LK[s],t('ls.'+s)];
 function mstats(b){
   const ps=H.pickups.filter(p=>p.bizId===b.id&&p.date.startsWith(MONTH));
   const conf=ps.filter(p=>loadOf(p.loadId).status==='confirmed');
@@ -594,181 +922,155 @@ try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&raw.regs)U=raw;}catc
 function save(){try{localStorage.setItem(KEY,JSON.stringify(U));}catch(e){}}
 
 const VIEWS=['home','join','request','my','verify','crew','crew-apply','crew-status'];
-const NAV={biz:[['home','소개'],['join','업소 등록'],['request','수거 신청'],['my','내 업소'],['verify','증빙 확인']],crew:[['crew','소개'],['crew-apply','지원하기'],['crew-status','지원 현황']]};
+const NAV={biz:[['home','nav.home'],['join','nav.join'],['request','nav.request'],['my','nav.my'],['verify','nav.verify']],crew:[['crew','nav.crew'],['crew-apply','nav.crewApply'],['crew-status','nav.crewStatus']]};
 const roleOf=v=>v.startsWith('crew')?'crew':'biz';
-const _h=location.hash;if(_h==='#collector'){try{history.replaceState(null,'','#crew-apply');}catch(e){}}
 const ui={view:location.hash==='#collector'?'crew-apply':VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'home',joinStep:1,joinDone:null,appDone:null,reqDone:null,myBiz:null,verify:''};
 
 function price(freq,vol){
-  const items=[[`기본 수거 · ${FREQ[freq]||'격일'}`,freq==='daily'?220000:150000]];
-  if(vol==='l') items.push(['대량 배출 (하루 봉투 5개 이상)',60000]);
+  const items=[[t('pr.base',t('freq.'+(freq||'alt'))),freq==='daily'?220000:150000]];
+  if(vol==='l') items.push([t('pr.bulk'),60000]);
   return {items,total:items.reduce((a,i)=>a+i[1],0)};
 }
 function qrSvg(text){
   try{const q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag(4,0);}
   catch(e){return `<div class="fallback">QR<br>${esc(text.split('/').pop())}</div>`;}
 }
+const pageHead=(tag,eyebrow,h1,lead,cls='')=>`<section class="page-head ${cls}"><div class="wrap"><p class="eyebrow"><span class="role-tag ${tag==='tag.crew'?'crew':tag==='tag.check'?'check':''}">${t(tag)}</span>${eyebrow}</p><h1>${h1}</h1>${lead?`<p class="lead">${lead}</p>`:''}</div></section>`;
+const ul=a=>`<ul>${a.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+
 function proofCard(b){
   const m=mstats(b);
-  const sums=SKEYS.filter(s=>b.streams.includes(s)).map(s=>{const c=m.conf.filter(p=>p.stream===s);return `<div class="cs" style="--cs:var(--${s}-soft)">${stTag(s)}<b>${kg(sumKg(c))}</b><small>${c.length}회 확인</small></div>`}).join('');
+  const sums=SKEYS.filter(s=>b.streams.includes(s)).map(s=>{const c=m.conf.filter(p=>p.stream===s);return `<div class="cs" style="--cs:var(--${s}-soft)">${stTag(s)}<b>${kg(sumKg(c))}</b><small>${t('xConfirmed',c.length)}</small></div>`}).join('');
   return `<div class="proof">
-    <div><p class="eyebrow" style="margin-bottom:4px">쓰레기 처리 증빙서</p><h3>${b.name}</h3><p class="sub">${b.banjar} · 11월 1–8일</p></div>
+    <div><p class="eyebrow" style="margin-bottom:4px">${t('proof.title')}</p><h3>${b.name}</h3><p class="sub">${b.banjar} · ${t('period')}</p></div>
     <div class="cert-sum">${sums}</div>
-    <div style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><b>처리 확인 ${m.conf.length}/${m.ps.length}건</b><span class="muted">${Math.round(m.rate*100)}%</span></div><div class="bar"><span style="width:${m.rate*100}%"></span></div></div>
-    <div class="qr-row"><div class="qr" role="img" aria-label="증빙 확인 QR 코드">${qrSvg('https://bin-go.example/v/'+certCode(b))}</div>
-      <div style="display:grid;gap:4px;min-width:0"><span class="code">${certCode(b)}</span><p class="sub">점검 때 QR을 보여 주세요</p></div></div>
+    <div style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><b>${t('proof.conf',m.conf.length,m.ps.length)}</b><span class="muted">${Math.round(m.rate*100)}%</span></div><div class="bar"><span style="width:${m.rate*100}%"></span></div></div>
+    <div class="qr-row"><div class="qr" role="img" aria-label="QR">${qrSvg('https://bin-go.example/v/'+certCode(b))}</div>
+      <div style="display:grid;gap:4px;min-width:0"><span class="code">${certCode(b)}</span><p class="sub">${t('proof.show')}</p></div></div>
   </div>`;
 }
 
 /* ---------- home ---------- */
 function vHome(){
   const b=BIZM.b1;
+  const card=(c,tag,cls)=>{const [tg,title,list]=t(c);return `<div class="price ${cls}"><span class="tag">${tg}</span><h3>${title}</h3><p class="amt">${tag}<small> ${t('p.perMonth')}</small></p>${ul(list)}</div>`;};
   return `
   <section class="hero"><div class="wrap hero-grid">
     <div>
       <p class="slogan">Every bin, a Bingo</p>
-      <h1>쓰레기는 <em>마을이 함께</em>,<br>증빙은 자동으로</h1>
-      <p class="lead">작은 홈스테이·와룽·카페를 묶어 마을 수거인과 허가된 처리처에 연결합니다. 유기물과 잔재물도 받습니다.</p>
-      <div class="ctas"><button class="btn primary" data-act="go" data-v="join">업소 등록하기</button><button class="btn" data-act="go" data-v="crew">수거인으로 일하기</button></div>
-      <div class="facts"><span>약정 없음</span><span>월 ${rp(150000)}부터</span><span>WhatsApp 알림</span></div>
+      <h1>${t('h.h1')}</h1>
+      <p class="lead">${t('h.lead')}</p>
+      <div class="ctas"><button class="btn primary" data-act="go" data-v="join">${t('h.ctaJoin')}</button><button class="btn" data-act="go" data-v="crew">${t('h.ctaCrew')}</button></div>
+      <div class="facts"><span>${t('h.f1')}</span><span>${t('h.f2',rp(150000))}</span><span>${t('h.f3')}</span></div>
     </div>
     <div class="hero-visual">
       ${proofCard(b)}
-      <div class="bubble"><span>유기물 수령이 확인됐어요. 이번 달 증빙에 반영했습니다.</span><time>09:52</time></div>
+      <div class="bubble"><span>${t('h.bubble')}</span><time>09:52</time></div>
     </div>
   </div></section>
 
   <section class="section tight"><div class="wrap"><div class="roles">
-    <div class="role-card"><span class="role-tag">업주용</span><h3>수거를 맡기고 싶어요</h3><p class="muted">홈스테이·와룽·카페 사장님</p>
-      <ul><li>업소 등록 후 정기 수거</li><li>추가 수거·쉬기 신청</li><li>매달 처리 증빙서</li></ul>
-      <div class="ctas"><button class="btn primary" data-act="go" data-v="join">업소 등록</button><button class="btn" data-act="go" data-v="request">수거 신청</button></div></div>
-    <div class="role-card crew"><span class="role-tag crew">수거인용</span><h3>수거인으로 일하고 싶어요</h3><p class="muted">마을 주민 누구나</p>
-      <ul><li>방문 1곳 ${rp(5000)}</li><li>마을 안 정해진 경로</li><li>장비·교육 제공</li></ul>
-      <div class="ctas"><button class="btn primary crew-btn" data-act="go" data-v="crew-apply">지원하기</button><button class="btn" data-act="go" data-v="crew">자세히</button></div></div>
+    <div class="role-card"><span class="role-tag">${t('tag.biz')}</span><h3>${t('rc.bizTitle')}</h3><p class="muted">${t('rc.bizSub')}</p>
+      ${ul(t('rc.bizList'))}
+      <div class="ctas"><button class="btn primary" data-act="go" data-v="join">${t('rc.bizBtn1')}</button><button class="btn" data-act="go" data-v="request">${t('rc.bizBtn2')}</button></div></div>
+    <div class="role-card crew"><span class="role-tag crew">${t('tag.crew')}</span><h3>${t('rc.crewTitle')}</h3><p class="muted">${t('rc.crewSub')}</p>
+      ${ul(t('rc.crewList',rp(5000)))}
+      <div class="ctas"><button class="btn primary crew-btn" data-act="go" data-v="crew-apply">${t('rc.crewBtn1')}</button><button class="btn" data-act="go" data-v="crew">${t('rc.crewBtn2')}</button></div></div>
   </div></div></section>
 
   <section class="section band"><div class="wrap">
-    <div class="sec-head"><p class="eyebrow">2026 규제</p><h2 class="h2">버리는 것만으론 부족합니다</h2></div>
+    <div class="sec-head"><p class="eyebrow">${t('r.eyebrow')}</p><h2 class="h2">${t('r.h2')}</h2></div>
     <div class="rules">
-      <div class="rule"><span class="when">2026. 4</span><h3>매립지 유기물 반입 금지</h3><p>음식물·제물 잔재는 따로 처리해야 합니다.</p></div>
-      <div class="rule"><span class="when">2026. 7</span><h3>분리배출 의무화</h3><p>분리하고, 처리한 사실을 증명해야 합니다.</p></div>
-      <div class="rule now"><span class="when">지금</span><h3>점검용 기록이 필요합니다</h3><p>빈고가 수거할 때마다 남겨 드립니다.</p></div>
+      <div class="rule"><span class="when">${t('r.w1')}</span><h3>${t('r.t1')}</h3><p>${t('r.d1')}</p></div>
+      <div class="rule"><span class="when">${t('r.w2')}</span><h3>${t('r.t2')}</h3><p>${t('r.d2')}</p></div>
+      <div class="rule now"><span class="when">${t('r.w3')}</span><h3>${t('r.t3')}</h3><p>${t('r.d3')}</p></div>
     </div>
   </div></section>
 
   <section class="section"><div class="wrap">
-    <div class="sec-head"><p class="eyebrow">이용 방법</p><h2 class="h2">등록부터 증빙까지 4단계</h2></div>
-    <ol class="steps">
-      <li><h3>등록</h3><p>온라인 5분, 또는 반자르에서.</p></li>
-      <li><h3>방문 상담</h3><p>분리 방법 안내와 색 봉투 전달.</p></li>
-      <li><h3>수거</h3><p>사진·무게 기록 후 WhatsApp 알림.</p></li>
-      <li><h3>증빙</h3><p>처리처가 확인하면 바로 반영.</p></li>
-    </ol>
+    <div class="sec-head"><p class="eyebrow">${t('s.eyebrow')}</p><h2 class="h2">${t('s.h2')}</h2></div>
+    <ol class="steps">${t('s.list').map(([h,p])=>`<li><h3>${h}</h3><p>${p}</p></li>`).join('')}</ol>
   </div></section>
 
   <section class="section band"><div class="wrap">
-    <div class="sec-head"><p class="eyebrow">받는 쓰레기</p><h2 class="h2">세 가지로만 나눠 주세요</h2></div>
-    <div class="accept">
-      <div class="acc" style="--c:var(--organik)"><h3>유기물 <small>초록 봉투</small></h3><ul><li>음식물, 조리 찌꺼기</li><li>바나나잎, 차낭 등 제물 잔재</li><li>정원 잎과 잔가지</li></ul><p class="to">→ 퇴비화 업체</p></div>
-      <div class="acc" style="--c:var(--anorganik)"><h3>재활용품 <small>노란 봉투</small></h3><ul><li>플라스틱 병·컵</li><li>캔, 유리병</li><li>종이, 골판지</li></ul><p class="to">→ 재활용 업체</p></div>
-      <div class="acc" style="--c:var(--residu)"><h3>잔재물 <small>회색 봉투</small></h3><ul><li>기저귀, 티슈</li><li>오염된 포장재, 스티로폼</li><li>분리 어려운 혼합물</li></ul><p class="to">→ 마을 TPS3R</p></div>
-    </div>
-    <p class="notice">배터리·약품·페인트 같은 유해 폐기물은 수거 신청의 ‘대형·특수’로 따로 신청하세요.</p>
+    <div class="sec-head"><p class="eyebrow">${t('a.eyebrow')}</p><h2 class="h2">${t('a.h2')}</h2></div>
+    <div class="accept">${SKEYS.map(s=>`<div class="acc" style="--c:var(--${s})"><h3>${sName(s)} <small>${t('a.bag.'+s)}</small></h3>${ul(t('a.list.'+s))}<p class="to">→ ${t('a.to.'+s)}</p></div>`).join('')}</div>
+    <p class="notice">${t('a.notice')}</p>
   </div></section>
 
   <section class="section"><div class="wrap">
-    <div class="sec-head"><p class="eyebrow">요금</p><h2 class="h2">혼자 계약하는 것보다 싸게</h2><p class="lead">수거·처리비·증빙서 포함. 한 달 단위로 쓰세요.</p></div>
-    <div class="prices">
-      <div class="price"><span class="tag">숙박업소 추천</span><h3>격일 수거</h3><p class="amt">${rp(150000)}<small> / 월</small></p><ul><li>이틀에 한 번 방문</li><li>쓰레기 3종 모두 수거</li><li>월간 증빙서·QR</li></ul></div>
-      <div class="price pick"><span class="tag">와룽·카페 추천</span><h3>매일 수거</h3><p class="amt">${rp(220000)}<small> / 월</small></p><ul><li>매일 정해진 시간 방문</li><li>쓰레기 3종 모두 수거</li><li>월간 증빙서·QR</li></ul></div>
-      <div class="price"><span class="tag">하루 봉투 5개 이상</span><h3>대량 배출</h3><p class="amt">+${rp(60000)}<small> / 월</small></p><ul><li>격일·매일 요금에 추가</li><li>첫 달 기록으로 재조정</li></ul></div>
-    </div>
-    <p class="price-note">추가 수거 1회 ${rp(25000)} · QRIS 또는 반자르 현금 납부 · 첫 달 봉투 무료</p>
+    <div class="sec-head"><p class="eyebrow">${t('p.eyebrow')}</p><h2 class="h2">${t('p.h2')}</h2><p class="lead">${t('p.lead')}</p></div>
+    <div class="prices">${card('p.c1',rp(150000),'')}${card('p.c2',rp(220000),'pick')}${card('p.c3','+'+rp(60000),'')}</div>
+    <p class="price-note">${t('p.note',rp(25000))}</p>
   </div></section>
 
   <section class="section band"><div class="wrap">
-    <div class="sec-head"><p class="eyebrow">서비스 지역</p><h2 class="h2">${OPEN_AT}곳이 모이면 그 마을에서 시작</h2></div>
-    <div class="cov">${DESA.map(d=>{const n=d.count+U.regs.filter(r=>r.desa===d.id).length;return `<div class="desa"><div class="desa-top"><h3>${d.name}</h3>${d.status==='live'?chip('ok','운영 중'):chip('wait','모집 중')}</div><small>Kab. ${d.kab}</small>
-      ${d.status==='live'?`<p class="desa-n">가입 업소 <b>${n}곳</b></p>`:`<div class="bar"><span style="width:${Math.min(100,n/OPEN_AT*100)}%;background:var(--wait)"></span></div><p class="desa-n">${n}/${OPEN_AT}곳</p>`}</div>`}).join('')}</div>
+    <div class="sec-head"><p class="eyebrow">${t('cov.eyebrow')}</p><h2 class="h2">${t('cov.h2',OPEN_AT)}</h2></div>
+    <div class="cov">${DESA.map(d=>{const n=d.count+U.regs.filter(r=>r.desa===d.id).length;return `<div class="desa"><div class="desa-top"><h3>${d.name}</h3>${d.status==='live'?chip('ok',t('c.live')):chip('wait',t('c.soon'))}</div><small>Kab. ${d.kab}</small>
+      ${d.status==='live'?`<p class="desa-n">${t('cov.live',n)}</p>`:`<div class="bar"><span style="width:${Math.min(100,n/OPEN_AT*100)}%;background:var(--wait)"></span></div><p class="desa-n">${t('cov.prog',n,OPEN_AT)}</p>`}</div>`}).join('')}</div>
   </div></section>
 
   <section class="section"><div class="wrap">
-    <div class="sec-head"><p class="eyebrow">FAQ</p><h2 class="h2">자주 묻는 질문</h2></div>
-    <div class="faq">
-      <details><summary>증빙서에는 무엇이 들어가나요?</summary><p>수거·하차 사진과 위치, 무게, 처리처의 수령 확인과 허가 정보가 건별로 들어갑니다.</p></details>
-      <details><summary>한 달만 써도 되나요?</summary><p>네. 약정이 없고, 쌓인 증빙은 해지 후에도 볼 수 있습니다.</p></details>
-      <details><summary>쉬는 날에는요?</summary><p>수거 신청에서 ‘쉬기’를 고르세요. 니에피처럼 마을 전체가 쉬는 날은 미리 알려 드립니다.</p></details>
-      <details><summary>분리를 잘못하면요?</summary><p>안내 메시지가 갑니다. 계속되면 처리처가 받지 않아 증빙에 빈칸이 생깁니다.</p></details>
-    </div>
+    <div class="sec-head"><p class="eyebrow">FAQ</p><h2 class="h2">${t('faq.h2')}</h2></div>
+    <div class="faq">${t('faq').map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>
   </div></section>
 
-  <section class="section tight"><div class="wrap"><div class="cta-band"><div><h2>다음 점검 전에 시작하세요</h2><p>등록 후 보통 3일 안에 첫 수거</p></div><button class="btn" data-act="go" data-v="join">업소 등록하기</button></div></div></section>`;
+  <section class="section tight"><div class="wrap"><div class="cta-band"><div><h2>${t('cta.h2')}</h2><p>${t('cta.p')}</p></div><button class="btn" data-act="go" data-v="join">${t('h.ctaJoin')}</button></div></div></section>`;
 }
 
-/* ---------- join (business registration) ---------- */
-const fld=(id,label,input,{req=true,help='',err='필수 항목입니다.'}={})=>`<div class="field" data-f="${id}"><label for="${id}">${label}${req?'<span class="req">*</span>':''}</label>${input}${help?`<span class="help">${help}</span>`:''}<span class="err">${err}</span></div>`;
-const grp=(id,label,inner,{req=true,help='',err='하나 이상 골라 주세요.'}={})=>`<div class="field" data-f="${id}" role="group" aria-labelledby="${id}-l"><span class="lbl" id="${id}-l">${label}${req?'<span class="req">*</span>':''}</span>${inner}${help?`<span class="help">${help}</span>`:''}<span class="err">${err}</span></div>`;
+/* ---------- form helpers ---------- */
+const fld=(id,label,input,{req=true,help='',err=t('e.req')}={})=>`<div class="field" data-f="${id}"><label for="${id}">${label}${req?'<span class="req">*</span>':''}</label>${input}${help?`<span class="help">${help}</span>`:''}<span class="err">${err}</span></div>`;
+const grp=(id,label,inner,{req=true,help='',err=t('e.chooseOne')}={})=>`<div class="field" data-f="${id}" role="group" aria-labelledby="${id}-l"><span class="lbl" id="${id}-l">${label}${req?'<span class="req">*</span>':''}</span>${inner}${help?`<span class="help">${help}</span>`:''}<span class="err">${err}</span></div>`;
 const radio=(name,val,title,sub,checked=false)=>`<label class="choice"><input type="radio" name="${name}" value="${val}" ${checked?'checked':''}><span><b>${title}</b>${sub?`<small>${sub}</small>`:''}</span></label>`;
-const desaOptions=()=>`<option value="">선택</option>${DESA.map(d=>`<option value="${d.id}">${d.name}${d.status==='live'?'':' (모집 중)'}</option>`).join('')}<option value="other">기타 지역</option>`;
+const desaOptions=()=>`<option value="">${t('f.select')}</option>${DESA.map(d=>`<option value="${d.id}">${d.name}${d.status==='live'?'':t('f.soonSuffix')}</option>`).join('')}<option value="other">${t('f.otherArea')}</option>`;
+const windows=['07:00–09:00','09:00–11:00','14:00–16:00'];
 
+/* ---------- join ---------- */
 function vJoin(){
-  if(ui.joinDone){const r=U.regs.find(x=>x.id===ui.joinDone);return joinDone(r);}
-  const steps=['업소','배출','요금','확인'];
-  return `<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag">업주용</span>업소 등록</p><h1>우리 업소 등록하기</h1><p class="lead">5객실 이하 숙박업소, 소형 와룽·카페 대상</p></div></section>
+  if(ui.joinDone){const r=U.regs.find(x=>x.id===ui.joinDone);if(r)return joinDone(r);ui.joinDone=null;}
+  const st=n=>ui.joinStep===n?'':'hidden';
+  return pageHead('tag.biz',t('j.eyebrow'),t('j.h1'),t('j.lead'))+`
   <div class="wrap form-layout">
     <form class="card" id="join-form" novalidate>
-      <ol class="stepper" id="join-stepper">${steps.map((s,i)=>`<li class="${i+1===ui.joinStep?'on':i+1<ui.joinStep?'done':''}">${i+1}. ${s}</li>`).join('')}</ol>
-
-      <fieldset data-step="1" ${ui.joinStep===1?'':'hidden'}><legend>업소 정보</legend>
-        ${fld('j-name','업소 이름','<input type="text" id="j-name" name="name" required placeholder="Pondok Sari Homestay" autocomplete="organization">')}
-        ${grp('j-type','업종',`<div class="choices c4">${radio('type','homestay','숙박업소','5실 이하',true)}${radio('type','warung','와룽','')}${radio('type','cafe','카페','')}${radio('type','resto','소형 식당','30석 이하')}</div>`)}
+      <ol class="stepper" id="join-stepper">${t('j.steps').map((s,i)=>`<li class="${i+1===ui.joinStep?'on':i+1<ui.joinStep?'done':''}">${i+1}. ${s}</li>`).join('')}</ol>
+      <fieldset data-step="1" ${st(1)}><legend>${t('j.l1')}</legend>
+        ${fld('j-name',t('f.name'),'<input type="text" id="j-name" name="name" required placeholder="Pondok Sari Homestay" autocomplete="organization">')}
+        ${grp('j-type',t('f.type'),`<div class="choices c4">${radio('type','homestay',t('type.homestay'),t('type.homestaySub'),true)}${radio('type','warung',t('type.warung'),'')}${radio('type','cafe',t('type.cafe'),'')}${radio('type','resto',t('type.resto'),t('type.restoSub'))}</div>`,{err:t('e.choose')})}
         <div class="row2">
-          ${fld('j-size','객실 수','<input type="number" id="j-size" name="size" min="1" max="60" required inputmode="numeric" placeholder="4">',{err:'숫자로 입력해 주세요.'})}
-          ${fld('j-owner','대표자 이름','<input type="text" id="j-owner" name="owner" required autocomplete="name" placeholder="Wayan Sari">')}
+          ${fld('j-size',t('f.rooms'),'<input type="number" id="j-size" name="size" min="1" max="60" required inputmode="numeric" placeholder="4">',{err:t('e.num')})}
+          ${fld('j-owner',t('f.owner'),'<input type="text" id="j-owner" name="owner" required autocomplete="name" placeholder="Wayan Sari">')}
         </div>
-        ${fld('j-wa','WhatsApp 번호','<div class="tel"><span>+62</span><input type="tel" id="j-wa" name="wa" required inputmode="tel" placeholder="812 3456 7890" autocomplete="tel-national"></div>',{err:'8로 시작하는 휴대폰 번호를 입력해 주세요.'})}
+        ${fld('j-wa',t('f.wa'),'<div class="tel"><span>+62</span><input type="tel" id="j-wa" name="wa" required inputmode="tel" placeholder="812 3456 7890" autocomplete="tel-national"></div>',{err:t('e.wa')})}
         <div class="row2">
-          ${fld('j-desa','마을',`<select id="j-desa" name="desa" required>${desaOptions()}</select>`)}
-          <div id="banjar-slot">${fld('j-banjar','반자르','<select id="j-banjar" name="banjar" required><option value="">마을 먼저 선택</option></select>')}</div>
+          ${fld('j-desa',t('f.desa'),`<select id="j-desa" name="desa" required>${desaOptions()}</select>`)}
+          <div id="banjar-slot">${fld('j-banjar',t('f.banjar'),`<select id="j-banjar" name="banjar" required><option value="">${t('f.desaFirst')}</option></select>`)}</div>
         </div>
         <div id="desa-note"></div>
-        ${fld('j-addr','찾아오는 길','<textarea id="j-addr" name="addr" required placeholder="반자르 회관에서 바다 쪽 200m, 파란 대문"></textarea>')}
-        ${fld('j-map','Google 지도 링크','<input type="url" id="j-map" name="map" placeholder="https://maps.app.goo.gl/...">',{req:false})}
+        ${fld('j-addr',t('f.addr'),`<textarea id="j-addr" name="addr" required placeholder="${esc(t('f.addrPh'))}"></textarea>`)}
+        ${fld('j-map',t('f.map'),'<input type="url" id="j-map" name="map" placeholder="https://maps.app.goo.gl/...">',{req:false})}
       </fieldset>
-
-      <fieldset data-step="2" ${ui.joinStep===2?'':'hidden'}><legend>배출 정보</legend>
-        ${grp('j-streams','배출하는 쓰레기',`<div class="choices c3">${SKEYS.map(s=>`<label class="choice s" style="--c:var(--${s})"><input type="checkbox" name="streams" value="${s}" checked><span><b>${STREAMS[s].ko}</b><small>${{organik:'음식물·제물 잔재',anorganik:'플라스틱·캔·종이',residu:'기저귀·티슈 등'}[s]}</small></span></label>`).join('')}</div>`)}
-        ${grp('j-vol','하루 배출량 (40L 봉투)',`<div class="choices c3">${radio('vol','s','1–2개','',true)}${radio('vol','m','3–4개','')}${radio('vol','l','5개 이상','+'+rp(60000))}</div>`,{err:'골라 주세요.'})}
-        ${grp('j-freq','수거 주기',`<div class="choices c2">${radio('freq','alt','격일',rp(150000),true)}${radio('freq','daily','매일',rp(220000))}</div>`,{err:'골라 주세요.'})}
+      <fieldset data-step="2" ${st(2)}><legend>${t('j.l2')}</legend>
+        ${grp('j-streams',t('f.streams'),`<div class="choices c3">${SKEYS.map(s=>`<label class="choice s" style="--c:var(--${s})"><input type="checkbox" name="streams" value="${s}" checked><span><b>${sName(s)}</b><small>${t('sd.'+s)}</small></span></label>`).join('')}</div>`)}
+        ${grp('j-vol',t('f.vol'),`<div class="choices c3">${radio('vol','s',t('vol.s'),'',true)}${radio('vol','m',t('vol.m'),'')}${radio('vol','l',t('vol.l'),'+'+rp(60000))}</div>`,{err:t('e.choose')})}
+        ${grp('j-freq',t('f.freq'),`<div class="choices c2">${radio('freq','alt',t('freq.alt'),rp(150000),true)}${radio('freq','daily',t('freq.daily'),rp(220000))}</div>`,{err:t('e.choose')})}
         <div class="row2">
-          ${fld('j-window','시간대','<select id="j-window" name="window" required><option>07:00–09:00</option><option>09:00–11:00</option><option>14:00–16:00</option></select>')}
-          ${fld('j-start','시작일',`<input type="date" id="j-start" name="start" required min="${addDays(TODAY,3)}" value="${addDays(TODAY,3)}">`)}
+          ${fld('j-window',t('f.window'),`<select id="j-window" name="window" required>${windows.map(w=>`<option>${w}</option>`).join('')}</select>`)}
+          ${fld('j-start',t('f.start'),`<input type="date" id="j-start" name="start" required min="${addDays(TODAY,3)}" value="${addDays(TODAY,3)}">`)}
         </div>
       </fieldset>
-
-      <fieldset data-step="3" ${ui.joinStep===3?'':'hidden'}><legend>요금·결제</legend>
+      <fieldset data-step="3" ${st(3)}><legend>${t('j.l3')}</legend>
         <div class="callout" id="join-price-inline"></div>
-        ${grp('j-pay','결제 방법',`<div class="choices c2">${radio('pay','qris','QRIS','매월 링크 발송',true)}${radio('pay','banjar','현금','반자르 담당자에게')}</div>`,{err:'골라 주세요.'})}
-        ${grp('j-agree','동의',`<label class="check"><input type="checkbox" name="agree1" value="1" required> <span>수거 기록(사진·위치·무게)을 증빙으로 쓰는 데 동의합니다.</span></label>
-          <label class="check"><input type="checkbox" name="agree2" value="1" required> <span>이용 약관·개인정보 처리방침에 동의합니다.</span></label>`,{err:'모두 동의해야 등록할 수 있습니다.'})}
+        ${grp('j-pay',t('f.pay'),`<div class="choices c2">${radio('pay','qris','QRIS',t('f.qrisSub'),true)}${radio('pay','banjar',t('f.cash'),t('f.cashSub'))}</div>`,{err:t('e.choose')})}
+        ${grp('j-agree',t('f.agree'),`<label class="check"><input type="checkbox" name="agree1" value="1" required> <span>${t('f.agree1')}</span></label>
+          <label class="check"><input type="checkbox" name="agree2" value="1" required> <span>${t('f.agree2')}</span></label>`,{err:t('e.agreeAll')})}
       </fieldset>
-
-      <fieldset data-step="4" ${ui.joinStep===4?'':'hidden'}><legend>입력 내용 확인</legend>
-        <dl class="review" id="join-review"></dl>
-      </fieldset>
-
-      <div class="form-nav">
-        <button type="button" class="btn" data-act="jPrev" ${ui.joinStep===1?'hidden':''}>이전</button>
-        <span></span>
-        ${ui.joinStep<4?`<button type="button" class="btn primary" data-act="jNext">다음</button>`:`<button type="submit" class="btn primary">등록 신청</button>`}
-      </div>
+      <fieldset data-step="4" ${st(4)}><legend>${t('j.l4')}</legend><dl class="review" id="join-review"></dl></fieldset>
+      <div class="form-nav">${joinNav(ui.joinStep)}</div>
     </form>
-    <aside class="side">
-      <div class="card"><h3>예상 월 요금</h3><div id="join-price"></div>
-        <ul><li>수거·처리비·증빙서 포함</li><li>첫 달 봉투 무료 · 약정 없음</li></ul></div>
-    </aside>
+    <aside class="side"><div class="card"><h3>${t('j.side')}</h3><div id="join-price"></div>${ul(t('j.sideList'))}</div></aside>
   </div>`;
 }
+const joinNav=n=>`<button type="button" class="btn" data-act="jPrev" ${n===1?'hidden':''}>${t('btn.prev')}</button><span></span>${n<4?`<button type="button" class="btn primary" data-act="jNext">${t('btn.next')}</button>`:`<button type="submit" class="btn primary">${t('btn.submitJoin')}</button>`}`;
 function joinData(){
   const f=document.getElementById('join-form'); if(!f) return null;
   const fd=new FormData(f);
@@ -779,22 +1081,20 @@ function joinData(){
 function updateJoinSide(){
   const d=joinData(); if(!d) return;
   const p=price(d.freq,d.vol);
-  const html=p.items.map(([t,v])=>`<div class="sum-line"><span>${t}</span><b>${rp(v)}</b></div>`).join('')+`<div class="sum-total"><span>월 합계</span><b>${rp(p.total)}</b></div>`;
-  const side=document.getElementById('join-price'); if(side) side.innerHTML=html;
-  const inl=document.getElementById('join-price-inline'); if(inl) inl.innerHTML=`월 <b>${rp(p.total)}</b> · ${FREQ[d.freq]} 수거${d.vol==='l'?' · 대량 배출':''} · 첫 수거일에 결제`;
-  const sizeLbl=document.querySelector('label[for="j-size"]'); if(sizeLbl) sizeLbl.innerHTML=(d.type==='homestay'?'객실 수':'좌석 수')+'<span class="req">*</span>';
+  const side=document.getElementById('join-price'); if(side) side.innerHTML=p.items.map(([x,v])=>`<div class="sum-line"><span>${x}</span><b>${rp(v)}</b></div>`).join('')+`<div class="sum-total"><span>${t('pr.total')}</span><b>${rp(p.total)}</b></div>`;
+  const inl=document.getElementById('join-price-inline'); if(inl) inl.innerHTML=t('j.inline',rp(p.total),t('freq.'+d.freq),d.vol==='l');
+  const sizeLbl=document.querySelector('label[for="j-size"]'); if(sizeLbl) sizeLbl.innerHTML=(d.type==='homestay'?t('f.rooms'):t('f.seats'))+'<span class="req">*</span>';
 }
 function updateDesa(){
   const sel=document.getElementById('j-desa'); if(!sel) return;
   const d=DESA.find(x=>x.id===sel.value);
   const slot=document.getElementById('banjar-slot'), note=document.getElementById('desa-note');
   if(sel.value==='other'){
-    slot.innerHTML=fld('j-other','마을 이름','<input type="text" id="j-other" name="otherDesa" required placeholder="Canggu">');
-    note.innerHTML=`<div class="callout wait">아직 운영 전인 지역입니다. 대기 명단에 올려 두고 ${OPEN_AT}곳이 모이면 연락드립니다.</div>`;
-    return;
+    slot.innerHTML=fld('j-other',t('f.otherDesa'),'<input type="text" id="j-other" name="otherDesa" required placeholder="Canggu">');
+    note.innerHTML=`<div class="callout wait">${t('dn.other',OPEN_AT)}</div>`;return;
   }
-  slot.innerHTML=fld('j-banjar','반자르',`<select id="j-banjar" name="banjar" required>${d?`<option value="">선택</option>${d.banjar.map(b=>`<option>${b}</option>`).join('')}`:'<option value="">마을 먼저 선택</option>'}</select>`);
-  note.innerHTML=d&&d.status!=='live'?`<div class="callout wait">${d.name}는 모집 중입니다 (${d.count+U.regs.filter(r=>r.desa===d.id).length}/${OPEN_AT}곳). ${OPEN_AT}곳이 모이면 시작합니다.</div>`:'';
+  slot.innerHTML=fld('j-banjar',t('f.banjar'),`<select id="j-banjar" name="banjar" required>${d?`<option value="">${t('f.select')}</option>${d.banjar.map(b=>`<option>${b}</option>`).join('')}`:`<option value="">${t('f.desaFirst')}</option>`}</select>`);
+  note.innerHTML=d&&d.status!=='live'?`<div class="callout wait">${t('dn.soon',d.name,d.count+U.regs.filter(r=>r.desa===d.id).length,OPEN_AT)}</div>`:'';
 }
 const WA_RE=/^(\+?62|0)?8\d{8,11}$/;
 function validate(scope){
@@ -815,66 +1115,60 @@ function setJoinStep(n){
   ui.joinStep=n;
   document.querySelectorAll('#join-form fieldset').forEach(fs=>fs.hidden=+fs.dataset.step!==n);
   document.querySelectorAll('#join-stepper li').forEach((li,i)=>li.className=i+1===n?'on':i+1<n?'done':'');
-  const nav=document.querySelector('#join-form .form-nav');
-  nav.innerHTML=`<button type="button" class="btn" data-act="jPrev" ${n===1?'hidden':''}>이전</button><span></span>${n<4?`<button type="button" class="btn primary" data-act="jNext">다음</button>`:`<button type="submit" class="btn primary">등록 신청</button>`}`;
+  document.querySelector('#join-form .form-nav').innerHTML=joinNav(n);
   if(n===4){
     const d=joinData();const desa=DESA.find(x=>x.id===d.desa);
     document.getElementById('join-review').innerHTML=[
-      ['업소',`${esc(d.name)} · ${TYPE[d.type]} ${esc(d.size)}${d.type==='homestay'?'실':'석'}`],['대표자',esc(d.owner)],['WhatsApp','+62 '+esc(d.wa.replace(/^(\+?62|0)/,''))],
-      ['위치',d.desa==='other'?esc(d.otherDesa)+' (대기)':`${esc(d.banjar)}, ${desa.name}`],['찾아오는 길',esc(d.addr)],
-      ['쓰레기',d.streams.map(s=>STREAMS[s].ko).join(', ')],['배출량',VOL[d.vol]],['수거',`${FREQ[d.freq]} ${esc(d.window)} · ${dkw(d.start)}부터`],
-      ['결제',d.pay==='qris'?'QRIS':'반자르 현금'],['월 요금',rp(price(d.freq,d.vol).total)]
+      [t('rv.biz'),`${esc(d.name)} · ${t('type.'+d.type)} · ${d.type==='homestay'?t('rooms',esc(d.size)):t('seats',esc(d.size))}`],[t('rv.owner'),esc(d.owner)],['WhatsApp','+62 '+esc(d.wa.replace(/^(\+?62|0)/,''))],
+      [t('rv.loc'),d.desa==='other'?esc(d.otherDesa)+' '+t('rv.wait'):`${esc(d.banjar)}, ${desa.name}`],[t('rv.addr'),esc(d.addr)],
+      [t('rv.waste'),d.streams.map(sName).join(', ')],[t('rv.vol'),t('volSum',t('vol.'+d.vol))],[t('rv.pickup'),t('rv.from',t('freq.'+d.freq),esc(d.window),dkw(d.start))],
+      [t('rv.pay'),d.pay==='qris'?t('pay.qris'):t('pay.cash')],[t('rv.fee'),rp(price(d.freq,d.vol).total)]
     ].map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('');
   }
   document.getElementById('join-form').scrollIntoView({block:'start',behavior:'smooth'});
 }
+const tli=(cls,title,sub)=>`<li class="${cls}"><span></span><div><b>${title}</b>${sub?`<small>${sub}</small>`:''}</div></li>`;
 function joinDone(r){
   const live=r.desa!=='other'&&DESA.find(x=>x.id===r.desa).status==='live';
-  return `<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag">업주용</span>업소 등록</p><h1>등록 신청 완료</h1></div></section>
+  return pageHead('tag.biz',t('j.eyebrow'),t('jd.h1'),'')+`
   <div class="wrap form-layout"><div class="card">
-    <div class="done-head"><span class="seal">✓</span><div style="min-width:0"><h2>${esc(r.name)}</h2><p class="muted">접수 번호 <span class="mono">${r.id}</span></p></div></div>
-    <ol class="tl">
-      <li class="done"><span></span><div><b>접수</b><small>WhatsApp으로 확인 메시지 발송</small></div></li>
-      ${live?`<li class="next"><span></span><div><b>방문 상담</b><small>${dkw(addDays(r.start,-2))} 전후 · 봉투 전달</small></div></li>
-      <li><span></span><div><b>첫 수거</b><small>${dkw(r.start)} ${esc(r.window)}</small></div></li>
-      <li><span></span><div><b>첫 증빙</b><small>처리처 확인 즉시</small></div></li>`
-      :`<li class="next"><span></span><div><b>대기 명단</b><small>${OPEN_AT}곳이 모이면 연락드립니다</small></div></li>`}
-    </ol>
-    <div class="form-nav"><button class="btn" data-act="joinAgain">다른 업소 등록</button><button class="btn primary" data-act="go" data-v="my" data-biz="${r.id}">내 업소로</button></div>
+    <div class="done-head"><span class="seal">✓</span><div style="min-width:0"><h2>${esc(r.name)}</h2><p class="muted">${t('jd.ref')} <span class="mono">${r.id}</span></p></div></div>
+    <ol class="tl">${tli('done',t('jd.t1'),t('jd.s1'))}${live?tli('next',t('jd.t2'),t('jd.s2',dkw(addDays(r.start,-2))))+tli('',t('jd.t3'),`${dkw(r.start)} ${esc(r.window)}`)+tli('',t('jd.t4'),t('jd.s4')):tli('next',t('jd.tw'),t('jd.sw',OPEN_AT))}</ol>
+    <div class="form-nav"><button class="btn" data-act="joinAgain">${t('jd.again')}</button><button class="btn primary" data-act="go" data-v="my" data-biz="${r.id}">${t('toMy')}</button></div>
   </div>
-  <aside class="side"><div class="card"><h3>월 요금</h3>${price(r.freq,r.vol).items.map(([t,v])=>`<div class="sum-line"><span>${t}</span><b>${rp(v)}</b></div>`).join('')}<div class="sum-total"><span>합계</span><b>${rp(r.total)}</b></div></div></aside></div>`;
+  <aside class="side"><div class="card"><h3>${t('jd.fee')}</h3>${price(r.freq,r.vol).items.map(([x,v])=>`<div class="sum-line"><span>${x}</span><b>${rp(v)}</b></div>`).join('')}<div class="sum-total"><span>${t('pr.sum')}</span><b>${rp(r.total)}</b></div></div></aside></div>`;
 }
 
 /* ---------- request ---------- */
 function myBizList(){
-  return [...U.regs.map(r=>({id:r.id,name:r.name,sample:false})),{id:'b1',name:BIZM.b1.name+' (예시)',sample:true},{id:'b3',name:BIZM.b3.name+' (예시)',sample:true}];
+  return [...U.regs.map(r=>({id:r.id,name:r.name})),{id:'b1',name:BIZM.b1.name+t('exampleSuffix')},{id:'b3',name:BIZM.b3.name+t('exampleSuffix')}];
 }
-const REQT={extra:'추가 수거',bulky:'대형·특수',pause:'쉬기'};
+const reqT=k=>t('rt.'+k);
 function vRequest(){
   const list=myBizList();
   const sel=ui.myBiz&&list.some(x=>x.id===ui.myBiz)?ui.myBiz:list[0].id;
-  if(ui.reqDone){const q=U.reqs.find(x=>x.id===ui.reqDone);return reqDone(q);}
+  if(ui.reqDone){const q=U.reqs.find(x=>x.id===ui.reqDone);if(q)return reqDone(q);ui.reqDone=null;}
   const mine=U.reqs.filter(q=>q.biz===sel);
-  return `<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag">업주용</span>수거 신청</p><h1>필요할 때 추가로</h1><p class="lead">정기 수거는 따로 신청하지 않아도 됩니다.</p></div></section>
+  return pageHead('tag.biz',t('rq.eyebrow'),t('rq.h1'),t('rq.lead'))+`
   <div class="wrap form-layout">
     <form class="card" id="req-form" novalidate>
-      ${U.regs.length?'':`<div class="callout">등록된 업소가 없어 예시 업소로 보여 드려요. <button class="link" data-act="go" data-v="join">업소 등록 →</button></div>`}
-      ${fld('r-biz','업소',`<select id="r-biz" name="biz" required>${list.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`)}
-      ${grp('r-type','종류',`<div class="choices c3">${radio('rtype','extra','추가 수거',rp(25000)+' / 회',true)}${radio('rtype','bulky','대형·특수','견적')}${radio('rtype','pause','쉬기','무료')}</div>`,{err:'골라 주세요.'})}
+      ${U.regs.length?'':`<div class="callout">${t('rq.noReg')} <button class="link" data-act="go" data-v="join">${t('rq.regLink')}</button></div>`}
+      ${fld('r-biz',t('f.biz'),`<select id="r-biz" name="biz" required>${list.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`)}
+      ${grp('r-type',t('f.rtype'),`<div class="choices c3">${radio('rtype','extra',reqT('extra'),t('rt.extraSub',rp(25000)),true)}${radio('rtype','bulky',reqT('bulky'),t('rt.bulkySub'))}${radio('rtype','pause',reqT('pause'),t('rt.pauseSub'))}</div>`,{err:t('e.choose')})}
       <div class="row2">
-        ${fld('r-date','날짜',`<input type="date" id="r-date" name="date" required min="${addDays(TODAY,1)}" value="${addDays(TODAY,1)}">`)}
-        <div data-show="extra bulky">${fld('r-window','시간대','<select id="r-window" name="window"><option>07:00–09:00</option><option>09:00–11:00</option><option>14:00–16:00</option></select>',{req:false})}</div>
-        <div data-show="pause" hidden>${fld('r-until','종료일','<input type="date" id="r-until" name="until" min="'+addDays(TODAY,1)+'">',{req:false,help:'하루만 쉬면 비워 두세요'})}</div>
+        ${fld('r-date',t('f.date'),`<input type="date" id="r-date" name="date" required min="${addDays(TODAY,1)}" value="${addDays(TODAY,1)}">`)}
+        <div data-show="extra bulky">${fld('r-window',t('f.window'),`<select id="r-window" name="window">${windows.map(w=>`<option>${w}</option>`).join('')}</select>`,{req:false})}</div>
+        <div data-show="pause" hidden>${fld('r-until',t('f.until'),'<input type="date" id="r-until" name="until" min="'+addDays(TODAY,1)+'">',{req:false,help:t('f.untilHelp')})}</div>
       </div>
-      <div data-show="extra">${grp('r-bags','봉투 수',`<div class="choices c3">${SKEYS.map(s=>`<label class="choice s bagc" style="--c:var(--${s})"><b>${STREAMS[s].ko}</b><input type="number" name="bags-${s}" min="0" max="20" value="${s==='organik'?2:0}" inputmode="numeric" aria-label="${STREAMS[s].ko} 봉투 수"></label>`).join('')}</div>`,{req:false,help:'4개마다 '+rp(25000)})}</div>
-      <div data-show="bulky" hidden>${fld('r-what','품목','<textarea id="r-what" name="what" placeholder="매트리스 1개, 야자잎 묶음 3개"></textarea>',{req:false})}
-        <div class="field"><label for="r-photo">사진 (선택)</label><input type="file" id="r-photo" name="photo" accept="image/*"></div></div>
-      ${fld('r-note','메모','<textarea id="r-note" name="note" placeholder="뒷문에 내놓을게요"></textarea>',{req:false})}
-      <div class="form-nav"><span></span><button type="submit" class="btn primary">신청하기</button></div>
+      <div data-show="extra">${grp('r-bags',t('f.bags'),`<div class="choices c3">${SKEYS.map(s=>`<label class="choice s bagc" style="--c:var(--${s})"><b>${sName(s)}</b><input type="number" name="bags-${s}" min="0" max="20" value="${s==='organik'?2:0}" inputmode="numeric" aria-label="${sName(s)}"></label>`).join('')}</div>`,{req:false,help:t('f.bagsHelp',rp(25000)),err:t('e.bags')})}</div>
+      <div data-show="bulky" hidden>${fld('r-what',t('f.what'),`<textarea id="r-what" name="what" placeholder="${esc(t('f.whatPh'))}"></textarea>`,{req:false,err:t('e.what')})}
+        <div class="field"><label for="r-photo">${t('f.photo')}</label><input type="file" id="r-photo" name="photo" accept="image/*"></div></div>
+      ${fld('r-note',t('f.note'),`<textarea id="r-note" name="note" placeholder="${esc(t('f.notePh'))}"></textarea>`,{req:false})}
+      <div class="form-nav"><span></span><button type="submit" class="btn primary">${t('btn.sendReq')}</button></div>
     </form>
     <aside class="side">
-      <div class="card"><h3>요금</h3><div id="req-price"></div></div>
-      <div class="card"><h3>신청 내역</h3>${mine.length?`<div class="list">${mine.slice().reverse().map(q=>`<div><span class="mono">${+q.date.slice(5,7)}/${+q.date.slice(8)}</span><span>${REQT[q.type]}</span>${chip('info','접수')}</div>`).join('')}</div>`:`<p class="muted" style="font-size:14px">아직 없습니다.</p>`}</div>
+      <div class="card"><h3>${t('rq.price')}</h3><div id="req-price"></div></div>
+      <div class="card"><h3>${t('rq.list')}</h3>${mine.length?`<div class="list">${mine.slice().reverse().map(q=>`<div><span class="mono">${dmd(q.date)}</span><span>${reqT(q.type)}</span>${chip('info',t('c.received'))}</div>`).join('')}</div>`:`<p class="muted" style="font-size:14px">${t('none')}</p>`}</div>
     </aside>
   </div>`;
 }
@@ -884,114 +1178,101 @@ function reqData(){
   return {biz:fd.get('biz'),type:fd.get('rtype'),date:fd.get('date'),window:fd.get('window'),until:fd.get('until'),bags,what:fd.get('what')?.trim(),note:fd.get('note')?.trim(),photo:(fd.get('photo')&&fd.get('photo').name)||''};
 }
 function reqPrice(d){
-  if(d.type==='pause') return {txt:'무료',sub:'대신 다른 날 추가 수거 1회 무료'};
-  if(d.type==='bulky') return {txt:'견적',sub:'2시간 안에 WhatsApp으로 안내'};
+  if(d.type==='pause') return {txt:t('rt.pauseSub'),sub:t('rp.pauseSub')};
+  if(d.type==='bulky') return {txt:t('rt.bulkySub'),sub:t('rp.bulkySub')};
   const n=SKEYS.reduce((a,s)=>a+d.bags[s],0); const units=Math.max(1,Math.ceil(n/4));
-  return {txt:rp(units*25000),sub:`봉투 ${n}개 · 다음 달 요금에 청구`};
+  return {txt:rp(units*25000),sub:t('rp.extraSub',n)};
 }
 function updateReq(){
   const d=reqData(); if(!d) return;
   document.querySelectorAll('#req-form [data-show]').forEach(el=>el.hidden=!el.dataset.show.split(' ').includes(d.type));
   const p=reqPrice(d);
-  const el=document.getElementById('req-price'); if(el) el.innerHTML=`<div class="sum-total" style="border:0;padding:0"><span>${REQT[d.type]}</span><b>${p.txt}</b></div><p class="muted" style="font-size:13.5px">${p.sub}</p>`;
+  const el=document.getElementById('req-price'); if(el) el.innerHTML=`<div class="sum-total" style="border:0;padding:0"><span>${reqT(d.type)}</span><b>${p.txt}</b></div><p class="muted" style="font-size:13.5px">${p.sub}</p>`;
 }
 function reqDone(q){
   const name=(U.regs.find(r=>r.id===q.biz)||BIZM[q.biz]||{}).name;
-  return `<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag">업주용</span>수거 신청</p><h1>신청 완료</h1></div></section>
+  const steps=q.type==='pause'?tli('next',t('rd.paused'),dkw(q.date)+(q.until&&q.until>q.date?' – '+dkw(q.until):''))
+    :q.type==='bulky'?tli('next',t('rd.quote'),t('rd.within2h'))+tli('',t('rd.pickup'),`${dkw(q.date)} ${esc(q.window)}`)
+    :tli('next',t('rd.assign'),t('rd.within2h'))+tli('',t('rd.pp'),`${dkw(q.date)} ${esc(q.window)}`);
+  return pageHead('tag.biz',t('rq.eyebrow'),t('rd.h1'),'')+`
   <div class="wrap form-layout"><div class="card">
-    <div class="done-head"><span class="seal">✓</span><div style="min-width:0"><h2>${REQT[q.type]} · ${dkw(q.date)}</h2><p class="muted">${esc(name)} · <span class="mono">${q.id}</span></p></div></div>
-    <ol class="tl">
-      <li class="done"><span></span><div><b>접수</b></div></li>
-      ${q.type==='pause'?`<li class="next"><span></span><div><b>수거 쉼</b><small>${dkw(q.date)}${q.until&&q.until>q.date?' – '+dkw(q.until):''}</small></div></li>`
-      :q.type==='bulky'?`<li class="next"><span></span><div><b>견적 안내</b><small>2시간 안에 WhatsApp</small></div></li><li><span></span><div><b>수거</b><small>${dkw(q.date)} ${esc(q.window)}</small></div></li>`
-      :`<li class="next"><span></span><div><b>수거인 배정</b><small>2시간 안에 WhatsApp</small></div></li><li><span></span><div><b>수거·증빙</b><small>${dkw(q.date)} ${esc(q.window)}</small></div></li>`}
-    </ol>
-    <div class="form-nav"><button class="btn" data-act="reqAgain">다른 신청</button><button class="btn primary" data-act="go" data-v="my" data-biz="${q.biz}">내 업소로</button></div>
+    <div class="done-head"><span class="seal">✓</span><div style="min-width:0"><h2>${reqT(q.type)} · ${dkw(q.date)}</h2><p class="muted">${esc(name)} · <span class="mono">${q.id}</span></p></div></div>
+    <ol class="tl">${tli('done',t('c.received'),'')}${steps}</ol>
+    <div class="form-nav"><button class="btn" data-act="reqAgain">${t('rd.again')}</button><button class="btn primary" data-act="go" data-v="my" data-biz="${q.biz}">${t('toMy')}</button></div>
   </div></div>`;
 }
 
 /* ---------- crew (collectors) ---------- */
-const crewHead=(eyebrow,h1,lead)=>`<section class="page-head crew"><div class="wrap"><p class="eyebrow"><span class="role-tag crew">수거인용</span>${eyebrow}</p><h1>${h1}</h1>${lead?`<p class="lead">${lead}</p>`:''}</div></section>`;
-function vCrew(){
-  return crewHead('수거인 소개','우리 마을 수거인이 되어 주세요','마을 업소를 정해진 경로로 돌며 수거하고, 처리처에 내려놓는 일입니다.')+`
-  <div class="wrap crew-wrap">
-    <div class="crew-points">
-      <div class="cp"><h3>안정적인 일감</h3><p>빈고가 같은 마을 업소를 묶어 매일 경로를 짜 드립니다.</p></div>
-      <div class="cp"><h3>방문할 때마다 수입</h3><p>1곳 ${rp(5000)} · 매주 금요일 정산</p></div>
-      <div class="cp"><h3>장비와 교육 제공</h3><p>기록용 앱, 조끼, 장갑 · 반나절 교육</p></div>
-    </div>
-    <div class="form-layout" style="padding-bottom:0">
-      <div class="card"><h2>지원 절차</h2>
-        <ol class="tl">
-          <li class="next"><span></span><div><b>온라인 지원</b><small>5분</small></div></li>
-          <li><span></span><div><b>서류 확인</b><small>2일 안에 WhatsApp</small></div></li>
-          <li><span></span><div><b>마을 면담</b><small>반자르 회관</small></div></li>
-          <li><span></span><div><b>교육 (반나절)</b><small>앱 사용, 분리, 하차 방법</small></div></li>
-          <li><span></span><div><b>첫 경로 배정</b><small>2주간 선배와 동행</small></div></li>
-        </ol>
-        <div class="form-nav"><span></span><button class="btn primary crew-btn" data-act="go" data-v="crew-apply">지원하기</button></div>
-      </div>
-      <aside class="side">${calcCard()}<div class="card"><h3>지원 자격</h3><ul><li>만 18세 이상 마을 주민</li><li>오토바이 운전 (SIM C)</li><li>안드로이드 휴대폰 (없으면 대여)</li></ul></div></aside>
-    </div>
-  </div>`;
-}
 function calcCard(){
-  return `<div class="card calc"><h3>예상 월 수입</h3>
-    <label for="calc-stops" class="muted" style="font-size:14px">하루 <b id="calc-n" style="color:var(--fg)">15</b>곳 · 주 6일</label>
+  return `<div class="card calc"><h3>${t('calc.h')}</h3>
+    <label for="calc-stops" class="muted" style="font-size:14px">${t('calc.lbl',15)}</label>
     <input type="range" id="calc-stops" min="5" max="30" value="15" data-in="calc">
     <span class="out" id="calc-out">${rp(15*5000*26)}</span>
-    <ul><li>방문 1곳 ${rp(5000)}</li><li>추가 수거 1회 ${rp(12000)}</li></ul></div>`;
+    ${ul([t('calc.l1',rp(5000)),t('calc.l2',rp(12000))])}</div>`;
 }
-function vCrewApply(){
-  if(ui.appDone){const a=U.apps.find(x=>x.id===ui.appDone);return appDone(a);}
-  return crewHead('지원하기','수거인 지원서','')+`
-  <div class="wrap form-layout">
-    <form class="card" id="app-form" novalidate>
-      <fieldset><legend>기본 정보</legend>
-        <div class="row2">
-          ${fld('a-name','이름 (KTP 기준)','<input type="text" id="a-name" name="name" required autocomplete="name">')}
-          ${fld('a-wa','WhatsApp 번호','<div class="tel"><span>+62</span><input type="tel" id="a-wa" name="wa" required inputmode="tel" placeholder="812 3456 7890"></div>',{err:'8로 시작하는 휴대폰 번호를 입력해 주세요.'})}
-        </div>
-        <div class="row2">
-          ${fld('a-desa','사는 마을',`<select id="a-desa" name="desa" required>${desaOptions()}</select>`)}
-          ${fld('a-age','나이','<input type="number" id="a-age" name="age" min="18" max="70" required inputmode="numeric">',{err:'만 18세 이상만 지원할 수 있습니다.'})}
-        </div>
-      </fieldset>
-      <fieldset><legend>근무 조건</legend>
-        ${grp('a-vehicle','운반 수단',`<div class="choices c2">${radio('vehicle','motor-box','오토바이+짐칸','봉투 8–10개',true)}${radio('vehicle','motor','오토바이','짐칸 대여 가능')}${radio('vehicle','pickup','픽업트럭','봉투 30개+')}${radio('vehicle','none','없음','차량 상담')}</div>`,{err:'골라 주세요.'})}
-        ${grp('a-days','가능 요일',`<div class="days">${['월','화','수','목','금','토','일'].map((d,i)=>`<label class="day"><input type="checkbox" name="days" value="${d}" ${i<6?'checked':''}><span>${d}</span></label>`).join('')}</div>`)}
-        ${grp('a-time','가능 시간',`<div class="choices c2">${[['07','오전 7–11시'],['14','오후 2–5시']].map(([v,t],i)=>`<label class="choice"><input type="checkbox" name="time" value="${v}" ${i===0?'checked':''}><span><b>${t}</b></span></label>`).join('')}</div>`)}
-        ${grp('a-phone','안드로이드 휴대폰',`<div class="choices c2">${radio('phone','yes','있음','',true)}${radio('phone','no','없음','대여 가능')}</div>`,{err:'골라 주세요.'})}
-      </fieldset>
-      <fieldset><legend>서류·정산</legend>
-        <div class="field" data-f="a-ktp"><label for="a-ktp">KTP 사진<span class="req">*</span></label><input type="file" id="a-ktp" name="ktp" accept="image/*" required><span class="help">신원 확인 후 삭제합니다.</span><span class="err">KTP 사진을 올려 주세요.</span></div>
-        <div class="row2">
-          ${fld('a-payout','정산 방법','<select id="a-payout" name="payout" required><option value="">선택</option><option>은행 계좌</option><option>DANA</option><option>OVO</option><option>GoPay</option></select>')}
-          ${fld('a-acct','계좌·번호','<input type="text" id="a-acct" name="acct" required inputmode="numeric">')}
-        </div>
-        ${grp('a-agree','동의',`<label class="check"><input type="checkbox" name="agree" value="1" required> <span>수거 기록이 업주 증빙으로 쓰이는 데 동의합니다.</span></label>`,{err:'동의해야 지원할 수 있습니다.'})}
-      </fieldset>
-      <div class="form-nav"><span></span><button type="submit" class="btn primary crew-btn">지원서 제출</button></div>
-    </form>
-    <aside class="side">${calcCard()}<div class="callout crew-note">업소에서 수거를 맡기려면 <button class="link" data-act="role" data-r="biz">업소 등록</button>으로 가세요.</div></aside>
+function vCrew(){
+  return pageHead('tag.crew',t('cr.eyebrow'),t('cr.h1'),t('cr.lead'),'crew')+`
+  <div class="wrap crew-wrap">
+    <div class="crew-points">${t('cr.points',rp(5000)).map(([h,p])=>`<div class="cp"><h3>${h}</h3><p>${p}</p></div>`).join('')}</div>
+    <div class="form-layout" style="padding-bottom:0">
+      <div class="card"><h2>${t('cr.steps')}</h2>
+        <ol class="tl">${t('cr.stepList').map(([a,b],i)=>tli(i===0?'next':'',a,b)).join('')}</ol>
+        <div class="form-nav"><span></span><button class="btn primary crew-btn" data-act="go" data-v="crew-apply">${t('nav.crewApply')}</button></div>
+      </div>
+      <aside class="side">${calcCard()}<div class="card"><h3>${t('cr.req')}</h3>${ul(t('cr.reqList'))}</div></aside>
+    </div>
   </div>`;
 }
-const APP_STEPS=[['접수',''],['서류 확인','2일 안에 WhatsApp'],['마을 면담','반자르 회관'],['교육 (반나절)',''],['첫 경로 배정','2주간 선배와 동행']];
-const appTl=()=>`<ol class="tl">${APP_STEPS.map(([t,s],i)=>`<li class="${i===0?'done':i===1?'next':''}"><span></span><div><b>${t}</b>${s?`<small>${s}</small>`:''}</div></li>`).join('')}</ol>`;
+function vCrewApply(){
+  if(ui.appDone){const a=U.apps.find(x=>x.id===ui.appDone);if(a)return appDone(a);ui.appDone=null;}
+  const note=t('ca.note');
+  return pageHead('tag.crew',t('ca.eyebrow'),t('ca.h1'),'','crew')+`
+  <div class="wrap form-layout">
+    <form class="card" id="app-form" novalidate>
+      <fieldset><legend>${t('ca.l1')}</legend>
+        <div class="row2">
+          ${fld('a-name',t('ca.name'),'<input type="text" id="a-name" name="name" required autocomplete="name">')}
+          ${fld('a-wa',t('f.wa'),'<div class="tel"><span>+62</span><input type="tel" id="a-wa" name="wa" required inputmode="tel" placeholder="812 3456 7890"></div>',{err:t('e.wa')})}
+        </div>
+        <div class="row2">
+          ${fld('a-desa',t('ca.desa'),`<select id="a-desa" name="desa" required>${desaOptions()}</select>`)}
+          ${fld('a-age',t('ca.age'),'<input type="number" id="a-age" name="age" min="18" max="70" required inputmode="numeric">',{err:t('e.age')})}
+        </div>
+      </fieldset>
+      <fieldset><legend>${t('ca.l2')}</legend>
+        ${grp('a-vehicle',t('ca.vehicle'),`<div class="choices c2">${t('ca.v').map(([v,a,b],i)=>radio('vehicle',v,a,b,i===0)).join('')}</div>`,{err:t('e.choose')})}
+        ${grp('a-days',t('ca.days'),`<div class="days">${t('ca.dayNames').map((d,i)=>`<label class="day"><input type="checkbox" name="days" value="${i}" ${i<6?'checked':''}><span>${d}</span></label>`).join('')}</div>`)}
+        ${grp('a-time',t('ca.time'),`<div class="choices c2">${[['07',t('ca.t1')],['14',t('ca.t2')]].map(([v,x],i)=>`<label class="choice"><input type="checkbox" name="time" value="${v}" ${i===0?'checked':''}><span><b>${x}</b></span></label>`).join('')}</div>`)}
+        ${grp('a-phone',t('ca.phone'),`<div class="choices c2">${radio('phone','yes',t('ca.yes'),'',true)}${radio('phone','no',t('ca.no'),t('ca.lend'))}</div>`,{err:t('e.choose')})}
+      </fieldset>
+      <fieldset><legend>${t('ca.l3')}</legend>
+        <div class="field" data-f="a-ktp"><label for="a-ktp">${t('ca.ktp')}<span class="req">*</span></label><input type="file" id="a-ktp" name="ktp" accept="image/*" required><span class="help">${t('ca.ktpHelp')}</span><span class="err">${t('e.ktp')}</span></div>
+        <div class="row2">
+          ${fld('a-payout',t('ca.payout'),`<select id="a-payout" name="payout" required><option value="">${t('f.select')}</option><option>${t('ca.bank')}</option><option>DANA</option><option>OVO</option><option>GoPay</option></select>`)}
+          ${fld('a-acct',t('ca.acct'),'<input type="text" id="a-acct" name="acct" required inputmode="numeric">')}
+        </div>
+        ${grp('a-agree',t('f.agree'),`<label class="check"><input type="checkbox" name="agree" value="1" required> <span>${t('ca.agree')}</span></label>`,{err:t('e.agree')})}
+      </fieldset>
+      <div class="form-nav"><span></span><button type="submit" class="btn primary crew-btn">${t('ca.submit')}</button></div>
+    </form>
+    <aside class="side">${calcCard()}<div class="callout crew-note">${note[0]}<button class="link" data-act="role" data-r="biz">${note[1]}</button>${note[2]}</div></aside>
+  </div>`;
+}
+const appTl=()=>`<ol class="tl">${t('cr.stepList').map(([a,b],i)=>tli(i===0?'done':i===1?'next':'',i===0?t('cr.received'):a,i===0?'':b)).join('')}</ol>`;
 function appDone(a){
-  return crewHead('지원하기','지원 완료','')+`
+  return pageHead('tag.crew',t('ca.eyebrow'),t('ad.h1'),'','crew')+`
   <div class="wrap form-layout"><div class="card">
     <div class="done-head"><span class="seal">✓</span><div style="min-width:0"><h2>${esc(a.name)}</h2><p class="muted"><span class="mono">${a.id}</span></p></div></div>
     ${appTl()}
-    <div class="form-nav"><button class="btn" data-act="appAgain">새 지원서</button><button class="btn primary crew-btn" data-act="go" data-v="crew-status">지원 현황</button></div>
+    <div class="form-nav"><button class="btn" data-act="appAgain">${t('ad.again')}</button><button class="btn primary crew-btn" data-act="go" data-v="crew-status">${t('ad.status')}</button></div>
   </div></div>`;
 }
 function vCrewStatus(){
   const apps=U.apps.slice().reverse();
-  return crewHead('지원 현황','내 지원 현황','')+`
+  return pageHead('tag.crew',t('nav.crewStatus'),t('cs.h1'),'','crew')+`
   <div class="wrap stack">
-    ${apps.length?apps.map(a=>`<div class="card"><div class="card-head"><div style="min-width:0"><h2>${esc(a.name)}</h2><p class="muted" style="font-size:14px"><span class="mono">${a.id}</span> · ${a.desa==='other'?'기타 지역':DESA.find(d=>d.id===a.desa).name} · ${dkw(a.created)}</p></div>${chip('wait','서류 확인 중')}</div>${appTl()}</div>`).join('')
-    :`<div class="empty">아직 제출한 지원서가 없습니다.<br><button class="btn primary crew-btn" style="margin-top:12px" data-act="go" data-v="crew-apply">지원하기</button></div>`}
+    ${apps.length?apps.map(a=>`<div class="card"><div class="card-head"><div style="min-width:0"><h2>${esc(a.name)}</h2><p class="muted" style="font-size:14px"><span class="mono">${a.id}</span> · ${a.desa==='other'?t('f.otherArea'):(DESA.find(d=>d.id===a.desa)||{}).name} · ${dkw(a.created)}</p></div>${chip('wait',t('c.review'))}</div>${appTl()}</div>`).join('')
+    :`<div class="empty">${t('cs.empty')}<br><button class="btn primary crew-btn" style="margin-top:12px" data-act="go" data-v="crew-apply">${t('nav.crewApply')}</button></div>`}
   </div>`;
 }
 
@@ -1001,11 +1282,11 @@ function ownerFeed(b){
   const ps=H.pickups.filter(p=>p.bizId===b.id&&p.date>='2026-11-07');
   const groups={}; ps.forEach(p=>{(groups[p.date+' '+p.time]??=[]).push(p);});
   Object.values(groups).forEach(g=>{
-    ev.push({d:g[0].date,t:g[0].time,cls:'',ko:`수거 완료 · ${g.map(p=>`${STREAMS[p.stream].ko} ${kg(p.kg)}`).join(', ')}`});
-    g.filter(p=>p.quality==='mixed').forEach(p=>ev.push({d:p.date,t:p.time,cls:'wait',ko:`${STREAMS[p.stream].ko}에 다른 쓰레기가 섞여 있었어요.`}));
+    ev.push({d:g[0].date,t:g[0].time,cls:'',x:t('fd.pick',g.map(p=>`${sName(p.stream)} ${kg(p.kg)}`).join(', '))});
+    g.filter(p=>p.quality==='mixed').forEach(p=>ev.push({d:p.date,t:p.time,cls:'wait',x:t('fd.mixed',sName(p.stream))}));
   });
   [...new Set(ps.map(p=>p.loadId))].map(loadOf).forEach(L=>{
-    if(L.status==='confirmed') ev.push({d:L.date,t:L.confirmTime,cls:'ok',ko:`${STREAMS[L.stream].ko} 처리 확인 · 증빙 반영`});
+    if(L.status==='confirmed') ev.push({d:L.date,t:L.confirmTime,cls:'ok',x:t('fd.conf',sName(L.stream))});
   });
   return ev.sort((a,b)=>(b.d+b.t).localeCompare(a.d+a.t)).slice(0,6);
 }
@@ -1015,40 +1296,37 @@ function vMy(){
   const id=ui.myBiz&&list.some(x=>x.id===ui.myBiz)?ui.myBiz:list[0].id;
   ui.myBiz=id;
   const reg=U.regs.find(r=>r.id===id);
-  const head=`<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag">업주용</span>내 업소</p><h1>${esc(reg?reg.name:BIZM[id].name)}</h1>
+  const head=`<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag">${t('tag.biz')}</span>${t('my.eyebrow')}</p><h1>${esc(reg?reg.name:BIZM[id].name)}</h1>
     <div class="picker" style="margin-top:14px">${list.map(x=>`<button class="pick" aria-pressed="${x.id===id}" data-act="pickBiz" data-id="${x.id}">${esc(x.name)}</button>`).join('')}</div></div></section>`;
   const reqs=U.reqs.filter(q=>q.biz===id);
-  const reqCard=`<div class="card"><div class="card-head"><h2>신청 내역</h2><button class="btn sm" data-act="go" data-v="request" data-biz="${id}">수거 신청</button></div>
-    ${reqs.length?`<div class="list">${reqs.slice().reverse().map(q=>`<div><span class="mono">${+q.date.slice(5,7)}/${+q.date.slice(8)}</span><span>${REQT[q.type]}${q.type==='extra'?` · ${SKEYS.reduce((a,s)=>a+q.bags[s],0)}봉`:''}</span>${chip('info','접수')}</div>`).join('')}</div>`:`<p class="muted" style="font-size:14px">아직 없습니다.</p>`}</div>`;
+  const reqCard=`<div class="card"><div class="card-head"><h2>${t('my.reqs')}</h2><button class="btn sm" data-act="go" data-v="request" data-biz="${id}">${t('my.reqBtn')}</button></div>
+    ${reqs.length?`<div class="list">${reqs.slice().reverse().map(q=>`<div><span class="mono">${dmd(q.date)}</span><span>${reqT(q.type)}${q.type==='extra'?` · ${t('bags',SKEYS.reduce((a,s)=>a+q.bags[s],0))}`:''}</span>${chip('info',t('c.received'))}</div>`).join('')}</div>`:`<p class="muted" style="font-size:14px">${t('none')}</p>`}</div>`;
   if(reg){
     const live=reg.desa!=='other'&&DESA.find(x=>x.id===reg.desa).status==='live';
     return head+`<div class="wrap my-grid">
       <div class="col">
-        <div class="card"><h2>진행 상황</h2><ol class="tl">
-          <li class="done"><span></span><div><b>등록 접수</b><small>${dkw(reg.created)}</small></div></li>
-          ${live?`<li class="next"><span></span><div><b>방문 상담</b><small>WhatsApp으로 일정 안내</small></div></li><li><span></span><div><b>첫 수거</b><small>${dkw(reg.start)} ${esc(reg.window)}</small></div></li>`:`<li class="next"><span></span><div><b>대기 명단</b><small>${OPEN_AT}곳이 모이면 시작</small></div></li>`}
-          <li><span></span><div><b>첫 증빙</b></div></li></ol></div>
+        <div class="card"><h2>${t('my.progress')}</h2><ol class="tl">${tli('done',t('my.registered'),dkw(reg.created))}${live?tli('next',t('my.visit'),t('my.visitSub'))+tli('',t('jd.t3'),`${dkw(reg.start)} ${esc(reg.window)}`):tli('next',t('jd.tw'),t('jd.sw',OPEN_AT))}${tli('',t('jd.t4'),'')}</ol></div>
         ${reqCard}
       </div>
       <div class="col">
-        <div class="card"><h2>이용 정보</h2><dl class="review">
-          <dt>요금</dt><dd>${rp(reg.total)}/월 · ${reg.pay==='qris'?'QRIS':'현금'}</dd><dt>수거</dt><dd>${FREQ[reg.freq]} ${esc(reg.window)}</dd>
-          <dt>쓰레기</dt><dd>${reg.streams.map(s=>STREAMS[s].ko).join(', ')}</dd><dt>위치</dt><dd>${reg.desa==='other'?esc(reg.otherDesa):esc(reg.banjar)+', '+DESA.find(x=>x.id===reg.desa).name}</dd></dl></div>
-        <div class="empty">첫 수거가 확인되면 증빙서가 생깁니다.</div>
+        <div class="card"><h2>${t('my.plan')}</h2><dl class="review">
+          <dt>${t('my.fee')}</dt><dd>${t('my.feeVal',rp(reg.total))} · ${reg.pay==='qris'?'QRIS':t('f.cash')}</dd><dt>${t('rv.pickup')}</dt><dd>${t('freq.'+reg.freq)} ${esc(reg.window)}</dd>
+          <dt>${t('rv.waste')}</dt><dd>${reg.streams.map(sName).join(', ')}</dd><dt>${t('rv.loc')}</dt><dd>${reg.desa==='other'?esc(reg.otherDesa):esc(reg.banjar)+', '+DESA.find(x=>x.id===reg.desa).name}</dd></dl></div>
+        <div class="empty">${t('my.empty')}</div>
       </div></div>`;
   }
   const b=BIZM[id]; const m=mstats(b); const np=nextPickup(b);
-  const recent=m.ps.slice().sort((a,c)=>(c.date+c.time).localeCompare(a.date+a.time)).slice(0,8).map(p=>{const L=loadOf(p.loadId);const [k,t]=LSTAT[L.status];return `<div><span class="mono">11/${+p.date.slice(8)}</span><span>${stTag(p.stream)} ${kg(p.kg)}</span>${chip(k,L.status==='confirmed'?'확인':'대기')}</div>`}).join('');
+  const recent=m.ps.slice().sort((a,c)=>(c.date+c.time).localeCompare(a.date+a.time)).slice(0,8).map(p=>{const L=loadOf(p.loadId);return `<div><span class="mono">${dmd(p.date)}</span><span>${stTag(p.stream)} ${kg(p.kg)}</span>${L.status==='confirmed'?chip('ok',t('c.ok')):chip('wait',t('c.wait'))}</div>`}).join('');
   return head+`<div class="wrap my-grid">
     <div class="col">
-      <div class="card"><div class="next-pick"><div><p class="muted" style="font-size:13.5px">다음 수거</p><p class="big">${dkw(np)}</p><p class="muted">${b.window} · ${COLM[b.collector].name}</p></div><button class="btn sm" data-act="go" data-v="request" data-biz="${b.id}">추가·쉬기</button></div></div>
+      <div class="card"><div class="next-pick"><div><p class="muted" style="font-size:13.5px">${t('my.next')}</p><p class="big">${dkw(np)}</p><p class="muted">${b.window} · ${COLM[b.collector].name}</p></div><button class="btn sm" data-act="go" data-v="request" data-biz="${b.id}">${t('my.extraBtn')}</button></div></div>
       ${proofCard(b)}
-      <button class="btn" data-act="go" data-v="verify" data-code="${certCode(b)}">점검 화면 미리보기</button>
+      <button class="btn" data-act="go" data-v="verify" data-code="${certCode(b)}">${t('my.preview')}</button>
     </div>
     <div class="col">
-      <div class="card"><h2>알림</h2><div class="feed">${ownerFeed(b).map(e=>`<div class="msg ${e.cls}"><span>${e.ko}</span><time>11/${+e.d.slice(8)} ${e.t}</time></div>`).join('')}</div></div>
-      <div class="card"><h2>최근 수거</h2><div class="list">${recent}</div></div>
-      <div class="card"><h2>요금</h2><div class="sum-line"><span>11월 · ${b.plan==='daily'?'매일':'격일'}</span><b>${rp(b.fee)}</b></div><div class="sum-line"><span>결제</span>${chip('ok','완료')}</div></div>
+      <div class="card"><h2>${t('my.feed')}</h2><div class="feed">${ownerFeed(b).map(e=>`<div class="msg ${e.cls}"><span>${e.x}</span><time>${dmd(e.d)} ${e.t}</time></div>`).join('')}</div></div>
+      <div class="card"><h2>${t('my.recent')}</h2><div class="list">${recent}</div></div>
+      <div class="card"><h2>${t('my.billing')}</h2><div class="sum-line"><span>${t('month')} · ${t('freq.'+b.plan)}</span><b>${rp(b.fee)}</b></div><div class="sum-line"><span>${t('my.payment')}</span>${chip('ok',t('c.paid'))}</div></div>
       ${reqCard}
     </div></div>`;
 }
@@ -1058,41 +1336,49 @@ function vVerify(){
   const q=ui.verify.trim().toUpperCase();
   const b=q?BIZ.find(x=>certCode(x)===q):null;
   let result='';
-  if(q&&!b) result=`<div class="valid bad"><span class="seal">!</span><div style="min-width:0"><h2>코드를 찾을 수 없습니다</h2><p>예: BG-2611-B1-XXXX</p></div></div>`;
+  if(q&&!b) result=`<div class="valid bad"><span class="seal">!</span><div style="min-width:0"><h2>${t('v.nf')}</h2><p>${t('v.eg','BG-2611-B1-XXXX')}</p></div></div>`;
   if(b){
     const m=mstats(b);
     const sumRows=SKEYS.filter(s=>b.streams.includes(s)).map(s=>{const c=m.conf.filter(p=>p.stream===s);const procs=[...new Set(c.map(p=>loadOf(p.loadId).processorId))].map(id=>PROC[id]);
-      return `<tr><td>${stTag(s)}</td><td class="r">${c.length}회</td><td class="r">${kg(sumKg(c))}</td><td>${procs.map(P=>`${P.name}<small class="mono">${P.permit}</small>`).join('')||'-'}</td></tr>`}).join('');
-    const chain=m.ps.slice().sort((a,c)=>(c.date+c.time).localeCompare(a.date+a.time)).map(p=>{const L=loadOf(p.loadId);const [k,t]=LSTAT[L.status];return `<tr>
-      <td class="nowrap">${dk(p.date)}</td><td>${stTag(p.stream)}</td><td class="r nowrap">${p.bags}봉 · ${kg(p.kg)}</td>
+      return `<tr><td>${stTag(s)}</td><td class="r">${t('times',c.length)}</td><td class="r">${kg(sumKg(c))}</td><td>${procs.map(P=>`${P.name}<small class="mono">${permit(P)}</small>`).join('')||'-'}</td></tr>`}).join('');
+    const chain=m.ps.slice().sort((a,c)=>(c.date+c.time).localeCompare(a.date+a.time)).map(p=>{const L=loadOf(p.loadId);const [k,x]=lstat(L.status);return `<tr>
+      <td class="nowrap">${dk(p.date)}</td><td>${stTag(p.stream)}</td><td class="r nowrap">${t('bags',p.bags)} · ${kg(p.kg)}</td>
       <td class="nowrap">${p.time}<small class="mono">${p.lat}, ${p.lng}</small></td>
       <td class="nowrap">${L.dropTime?`${L.dropTime}<small>${PROC[L.processorId].name}</small>`:'-'}</td>
-      <td class="nowrap">${chip(k,t)}<small>${L.status==='confirmed'?`${L.confirmTime} · ${L.confirmedBy}`:''}</small></td></tr>`}).join('');
-    result=`<div class="valid"><span class="seal">✓</span><div style="min-width:0"><h2>유효한 증빙</h2><p>${b.name} · 11월 1–8일 · 처리 확인 ${m.conf.length}/${m.ps.length}건</p></div></div>
+      <td class="nowrap">${chip(k,x)}<small>${L.status==='confirmed'?`${L.confirmTime} · ${L.confirmedBy}`:''}</small></td></tr>`}).join('');
+    result=`<div class="valid"><span class="seal">✓</span><div style="min-width:0"><h2>${t('v.valid')}</h2><p>${t('v.sum',b.name,t('period'),m.conf.length,m.ps.length)}</p></div></div>
     <div class="card"><div class="vfacts">
-      <div><small>업소</small><b>${b.name}</b><span class="muted">${b.typeKo}</span></div>
-      <div><small>위치</small><b>${b.banjar}</b><span class="muted">${b.desa}, Badung</span></div>
-      <div><small>가입 · 주기</small><b>${dk(b.joined)}</b><span class="muted">${b.plan==='daily'?'매일':'격일'}</span></div>
-      <div><small>증빙 코드</small><b class="code">${certCode(b)}</b></div></div></div>
-    <div class="card"><h2>종류별 처리</h2><div class="tbl-wrap"><table><thead><tr><th>종류</th><th class="r">확인</th><th class="r">무게</th><th>처리처 · 허가</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>
-    <div class="card"><h2>건별 기록</h2>
-      <div class="tbl-wrap"><table><thead><tr><th>날짜</th><th>종류</th><th class="r">양</th><th>수거</th><th>하차</th><th>처리처 확인</th></tr></thead><tbody>${chain}</tbody></table></div>
-      <p class="muted" style="font-size:13px">사진·위치는 촬영 즉시 저장되며 수정할 수 없습니다.</p></div>`;
+      <div><small>${t('v.biz')}</small><b>${b.name}</b><span class="muted">${typeLabel(b)}</span></div>
+      <div><small>${t('v.loc')}</small><b>${b.banjar}</b><span class="muted">${b.desa}, Badung</span></div>
+      <div><small>${t('v.joined')}</small><b>${dk(b.joined)}</b><span class="muted">${t('freq.'+b.plan)}</span></div>
+      <div><small>${t('v.code')}</small><b class="code">${certCode(b)}</b></div></div></div>
+    <div class="card"><h2>${t('v.byType')}</h2><div class="tbl-wrap"><table><thead><tr><th>${t('v.type')}</th><th class="r">${t('v.conf')}</th><th class="r">${t('v.weight')}</th><th>${t('v.fac')}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>
+    <div class="card"><h2>${t('v.log')}</h2>
+      <div class="tbl-wrap"><table><thead><tr><th>${t('v.date')}</th><th>${t('v.type')}</th><th class="r">${t('v.amt')}</th><th>${t('v.pick')}</th><th>${t('v.drop')}</th><th>${t('v.facChk')}</th></tr></thead><tbody>${chain}</tbody></table></div>
+      <p class="muted" style="font-size:13px">${t('v.note')}</p></div>`;
   }
-  return `<section class="page-head"><div class="wrap"><p class="eyebrow"><span class="role-tag check">점검용</span>증빙 확인</p><h1>처리 증빙 확인</h1><p class="lead">점검 담당자가 QR로 여는 페이지입니다.</p></div></section>
+  return pageHead('tag.check',t('v.eyebrow'),t('v.h1'),t('v.lead'))+`
   <div class="wrap stack">
-    <div class="card"><form class="verify-form" id="verify-form"><input type="text" id="verify-code" placeholder="BG-2611-B1-XXXX" value="${esc(ui.verify)}" aria-label="증빙 코드" autocomplete="off"><button class="btn primary" type="submit">확인</button></form>
-      <div class="picker">예시 ${BIZ.slice(0,4).map(x=>`<button class="pick" data-act="go" data-v="verify" data-code="${certCode(x)}">${x.name}</button>`).join('')}</div></div>
+    <div class="card"><form class="verify-form" id="verify-form"><input type="text" id="verify-code" placeholder="BG-2611-B1-XXXX" value="${esc(ui.verify)}" aria-label="${t('v.code')}" autocomplete="off"><button class="btn primary" type="submit">${t('v.check')}</button></form>
+      <div class="picker">${t('v.examples')} ${BIZ.slice(0,4).map(x=>`<button class="pick" data-act="go" data-v="verify" data-code="${certCode(x)}">${x.name}</button>`).join('')}</div></div>
     ${result}
   </div>`;
 }
 
 /* ---------- render + events ---------- */
 const $app=document.getElementById('app');
-function render(){
+function renderChrome(){
   const role=roleOf(ui.view); document.body.dataset.role=role;
-  document.getElementById('nav').innerHTML=NAV[role].map(([v,t])=>`<button data-act="go" data-v="${v}" aria-current="${v===ui.view?'page':'false'}">${t}</button>`).join('');
-  document.querySelectorAll('.role-switch button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===role));
+  document.documentElement.lang=lang;
+  document.getElementById('nav').innerHTML=NAV[role].map(([v,k])=>`<button data-act="go" data-v="${v}" aria-current="${v===ui.view?'page':'false'}">${t(k)}</button>`).join('');
+  const rs=document.getElementById('role-switch'); rs.setAttribute('aria-label',t('role.aria'));
+  rs.innerHTML=['biz','crew'].map(r=>`<button data-act="role" data-r="${r}" aria-pressed="${r===role}">${t('role.'+r)}</button>`).join('');
+  document.getElementById('foot-about').textContent=`Bin-Go 빈고 · Every bin, a Bingo · ${t('foot.about')}`;
+  document.getElementById('foot-contact').innerHTML=`${t('foot.contact')} <span class="mono">+62 8xx-xxxx-xxxx</span> · ${t('foot.hours')}`;
+  document.getElementById('lang-pick').innerHTML=`<span class="lang-lbl">${t('foot.lang')}</span>`+LANGS.map(([k,n])=>`<button data-act="lang" data-l="${k}" aria-pressed="${k===lang}" lang="${k}">${n}</button>`).join('');
+}
+function render(){
+  renderChrome();
   $app.innerHTML={home:vHome,join:vJoin,request:vRequest,my:vMy,verify:vVerify,crew:vCrew,'crew-apply':vCrewApply,'crew-status':vCrewStatus}[ui.view]();
   if(ui.view==='join'&&!ui.joinDone){updateDesa();updateJoinSide();}
   if(ui.view==='request'&&!ui.reqDone) updateReq();
@@ -1116,6 +1402,20 @@ const ACT={
     if(d.v==='request') ui.reqDone=null;
     try{history.replaceState(null,'','#'+d.v);}catch(e){} render(); window.scrollTo(0,0);},
   role(d){ACT.go({v:d.r==='crew'?'crew':'home'});},
+  lang(d){
+    if(d.l===lang) return;
+    // keep an in-progress join form: its step and values survive the re-render only when on step 1 with nothing typed, so carry values across
+    const snap=[...document.querySelectorAll('#app input,#app select,#app textarea')].filter(el=>el.id&&el.type!=='file').map(el=>[el.id,el.type==='checkbox'||el.type==='radio'?el.checked:el.value]);
+    const radios=[...document.querySelectorAll('#app input[type=radio]:checked,#app input[type=checkbox]')].map(el=>[el.name,el.value,el.checked]);
+    lang=d.l; try{localStorage.setItem('bingo-lang',lang);}catch(e){}
+    const y=window.scrollY; render();
+    snap.forEach(([id,v])=>{const el=document.getElementById(id);if(el&&typeof v==='string'){el.value=v;}});
+    radios.forEach(([n,v,c])=>{const el=document.querySelector(`#app input[name="${n}"][value="${v}"]`);if(el)el.checked=c;});
+    const ds=document.getElementById('j-desa'); if(ds){updateDesa();snap.forEach(([id,v])=>{if(id==='j-banjar'||id==='j-other'){const el=document.getElementById(id);if(el)el.value=v;}});updateJoinSide();}
+    if(document.getElementById('req-form')) updateReq();
+    if(ui.view==='join'&&!ui.joinDone&&ui.joinStep===4) setJoinStep(4);
+    window.scrollTo(0,y);
+  },
   jNext(){const fs=document.querySelector(`#join-form fieldset[data-step="${ui.joinStep}"]`);if(validate(fs)) setJoinStep(ui.joinStep+1);},
   jPrev(){setJoinStep(Math.max(1,ui.joinStep-1));},
   joinAgain(){ui.joinDone=null;ui.joinStep=1;render();window.scrollTo(0,0);},
@@ -1144,23 +1444,24 @@ document.addEventListener('submit',e=>{
   if(f.id==='join-form'){
     const d=joinData();
     const r={...d,id:rid('BG-J'),total:price(d.freq,d.vol).total,created:TODAY};
-    U.regs.push(r);save();ui.joinDone=r.id;ui.myBiz=r.id;ui.joinStep=1;render();window.scrollTo(0,0);toast('등록 신청이 접수됐습니다.');return;
+    U.regs.push(r);save();ui.joinDone=r.id;ui.myBiz=r.id;ui.joinStep=1;render();window.scrollTo(0,0);toast(t('t.join'));return;
   }
   if(f.id==='req-form'){
     if(!validate(f)) return;
     const d=reqData();
-    if(d.type==='extra'&&!SKEYS.some(s=>d.bags[s]>0)){const fl=f.querySelector('[data-f="r-bags"]');fl.classList.add('invalid');fl.querySelector('.err').textContent='봉투를 한 개 이상 입력해 주세요.';return;}
-    if(d.type==='bulky'&&!d.what){const fl=f.querySelector('[data-f="r-what"]');fl.classList.add('invalid');fl.querySelector('.err').textContent='무엇을 버리는지 적어 주세요.';f.querySelector('#r-what').focus();return;}
-    const q={...d,id:rid('BG-R'),created:TODAY};U.reqs.push(q);save();ui.reqDone=q.id;ui.myBiz=d.biz;render();window.scrollTo(0,0);toast('수거 신청이 접수됐습니다.');return;
+    if(d.type==='extra'&&!SKEYS.some(s=>d.bags[s]>0)){f.querySelector('[data-f="r-bags"]').classList.add('invalid');return;}
+    if(d.type==='bulky'&&!d.what){f.querySelector('[data-f="r-what"]').classList.add('invalid');f.querySelector('#r-what').focus();return;}
+    const q={...d,id:rid('BG-R'),created:TODAY};U.reqs.push(q);save();ui.reqDone=q.id;ui.myBiz=d.biz;render();window.scrollTo(0,0);toast(t('t.req'));return;
   }
   if(f.id==='app-form'){
     if(!validate(f)) return;
     const fd=new FormData(f);
     const a={id:rid('BG-C'),name:fd.get('name').trim(),wa:fd.get('wa'),desa:fd.get('desa'),vehicle:fd.get('vehicle'),days:fd.getAll('days'),created:TODAY};
-    U.apps.push(a);save();ui.appDone=a.id;render();window.scrollTo(0,0);toast('지원서가 접수됐습니다.');return;
+    U.apps.push(a);save();ui.appDone=a.id;render();window.scrollTo(0,0);toast(t('t.app'));return;
   }
 });
 window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(VIEWS.includes(v)&&v!==ui.view){ui.view=v;render();window.scrollTo(0,0);}});
+if(location.hash==='#collector'){try{history.replaceState(null,'','#crew-apply');}catch(e){}}
 render();
 </script>
 
