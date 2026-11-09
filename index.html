@@ -631,6 +631,12 @@ footer::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;back
   .o2{animation-duration:20s;animation-delay:-5s}.o3{animation-duration:18s;animation-delay:-9s}.o4{animation-duration:22s;animation-delay:-3s}
   .thread-line{animation:dash 30s linear infinite}
 }
+
+/* ===== v13 calmer art ===== */
+.hero-art{-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,.18) 48%,#000 78%);mask-image:linear-gradient(90deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,.18) 48%,#000 78%)}
+.hero-art .ln{stroke-opacity:.7}
+.thread{filter:blur(14px)}
+@media (max-width:900px){.hero-art{-webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,.15) 50%,#000 80%);mask-image:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,.15) 50%,#000 80%)}}
 </style>
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -1117,10 +1123,9 @@ function vHome(){
       <linearGradient id="hg2" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#7FDBE6" stop-opacity="0"/><stop offset=".5" stop-color="#8EE3EC" stop-opacity=".32"/><stop offset="1" stop-color="#A7E8C4" stop-opacity="0"/></linearGradient>
       <radialGradient id="hg3"><stop offset="0" stop-color="#E9FBFF" stop-opacity=".5"/><stop offset="1" stop-color="#E9FBFF" stop-opacity="0"/></radialGradient>
     </defs>
-    <path class="rb" d="M-120 470 C 200 380 420 560 720 470 S 1200 330 1580 420 L 1580 570 C 1200 480 1000 650 720 610 S 200 530 -120 610 Z" fill="url(#hg2)"/>
-    <path class="ln ln1" d="M-120 420 C 220 330 440 520 740 430 S 1220 300 1580 380" fill="none" stroke="url(#hg1)" stroke-width="1.6"/>
-    <path class="ln ln2" d="M-120 452 C 240 372 460 562 760 472 S 1240 342 1580 422" fill="none" stroke="url(#hg1)" stroke-width="1"/>
-    <path class="ln ln3" d="M-120 118 C 300 38 520 198 860 108 S 1300 18 1580 88" fill="none" stroke="url(#hg1)" stroke-width="1"/>
+    <path class="rb" d="M-120 560 C 200 500 420 640 720 580 S 1200 470 1580 530 L 1580 700 C 1200 640 1000 720 720 700 S 200 660 -120 700 Z" fill="url(#hg2)"/>
+    <path class="ln ln1" d="M-120 600 C 220 540 440 650 740 590 S 1220 500 1580 560" fill="none" stroke="url(#hg1)" stroke-width="1.6"/>
+    <path class="ln ln2" d="M-120 622 C 240 566 460 670 760 612 S 1240 526 1580 586" fill="none" stroke="url(#hg1)" stroke-width="1"/>
     <circle class="ring r1" cx="1240" cy="150" r="170" fill="none" stroke="url(#hg1)" stroke-width="1.2"/>
     <circle class="ring r2" cx="1240" cy="150" r="245" fill="none" stroke="url(#hg1)" stroke-width="1" stroke-dasharray="2 9"/>
     <circle cx="1240" cy="150" r="120" fill="url(#hg3)"/>
@@ -1143,8 +1148,8 @@ function vHome(){
   <div class="flow-art" aria-hidden="true">
     <svg class="thread" viewBox="0 0 100 1000" preserveAspectRatio="none" focusable="false">
       <defs><linearGradient id="fg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1A97B0"/><stop offset=".5" stop-color="#5CC6D4"/><stop offset="1" stop-color="#7ED6A8"/></linearGradient></defs>
-      <path d="M10 0 C 35 70, 92 110, 90 210 S 8 330, 10 450 S 92 600, 88 720 S 14 860, 30 940 S 70 990, 60 1000" fill="none" stroke="url(#fg1)" stroke-width="56" stroke-opacity=".09" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-      <path class="thread-line" d="M10 0 C 35 70, 92 110, 90 210 S 8 330, 10 450 S 92 600, 88 720 S 14 860, 30 940 S 70 990, 60 1000" fill="none" stroke="url(#fg1)" stroke-width="1.6" stroke-opacity=".6" stroke-dasharray="5 9" vector-effect="non-scaling-stroke"/>
+      <path d="M10 0 C 35 70, 92 110, 90 210 S 8 330, 10 450 S 92 600, 88 720 S 14 860, 30 940 S 70 990, 60 1000" fill="none" stroke="url(#fg1)" stroke-width="120" stroke-opacity=".06" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <path d="M10 0 C 35 70, 92 110, 90 210 S 8 330, 10 450 S 92 600, 88 720 S 14 860, 30 940 S 70 990, 60 1000" fill="none" stroke="url(#fg1)" stroke-width="44" stroke-opacity=".05" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     </svg>
     <i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i><i class="orb o4"></i>
     <span class="wm"></span>
