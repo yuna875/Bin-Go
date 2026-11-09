@@ -667,8 +667,8 @@ try{const l=localStorage.getItem('bingo-lang');if(LANGS.some(x=>x[0]===l))lang=l
 
 const I18N={
 ko:{
-  'nav.home':'소개','nav.join':'업소 등록','nav.request':'수거 신청','nav.my':'내 업소','nav.verify':'증빙 확인',
-  'nav.crew':'소개','nav.crewApply':'지원하기','nav.crewStatus':'지원 현황',
+  'nav.home':'서비스 소개','nav.join':'업소 등록','nav.request':'수거 신청','nav.my':'내 업소','nav.verify':'증빙 확인',
+  'nav.crew':'수거인 안내','nav.crewApply':'지원하기','nav.crewStatus':'지원 현황',
   'role.biz':'수거 맡기기','role.crew':'수거인','role.aria':'이용자 선택',
   'tag.biz':'업주용','tag.crew':'수거인용','tag.check':'점검용',
   'foot.about':'프로토타입 · 업소·인물·가격은 예시','foot.contact':'문의 WhatsApp','foot.hours':'월–토 08–17시','foot.lang':'언어',
@@ -770,8 +770,8 @@ ko:{
   't.join':'등록 신청이 접수됐습니다.','t.req':'수거 신청이 접수됐습니다.','t.app':'지원서가 접수됐습니다.'
 },
 en:{
-  'nav.home':'About','nav.join':'Register','nav.request':'Request','nav.my':'My business','nav.verify':'Verify',
-  'nav.crew':'About','nav.crewApply':'Apply','nav.crewStatus':'My application',
+  'nav.home':'About Bin-Go','nav.join':'Register','nav.request':'Request','nav.my':'My business','nav.verify':'Verify',
+  'nav.crew':'For collectors','nav.crewApply':'Apply','nav.crewStatus':'My application',
   'role.biz':'Get pickup','role.crew':'Collector','role.aria':'Choose who you are',
   'tag.biz':'Businesses','tag.crew':'Collectors','tag.check':'Inspectors',
   'foot.about':'Prototype · businesses, people and prices are examples','foot.contact':'WhatsApp','foot.hours':'Mon–Sat 8am–5pm','foot.lang':'Language',
@@ -873,8 +873,8 @@ en:{
   't.join':'Registration received.','t.req':'Request received.','t.app':'Application received.'
 },
 id:{
-  'nav.home':'Tentang','nav.join':'Daftar usaha','nav.request':'Ajukan','nav.my':'Usaha saya','nav.verify':'Cek bukti',
-  'nav.crew':'Tentang','nav.crewApply':'Melamar','nav.crewStatus':'Status lamaran',
+  'nav.home':'Tentang Bin-Go','nav.join':'Daftar usaha','nav.request':'Ajukan','nav.my':'Usaha saya','nav.verify':'Cek bukti',
+  'nav.crew':'Info pengangkut','nav.crewApply':'Melamar','nav.crewStatus':'Status lamaran',
   'role.biz':'Pesan angkut','role.crew':'Pengangkut','role.aria':'Pilih peran',
   'tag.biz':'Untuk usaha','tag.crew':'Untuk pengangkut','tag.check':'Untuk pemeriksa',
   'foot.about':'Prototipe · usaha, orang, dan harga hanya contoh','foot.contact':'WhatsApp','foot.hours':'Sen–Sab 08.00–17.00','foot.lang':'Bahasa',
@@ -1083,9 +1083,10 @@ try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&raw.regs)U=raw;}catc
 function save(){try{localStorage.setItem(KEY,JSON.stringify(U));}catch(e){}}
 
 const VIEWS=['home','join','request','my','verify','crew','crew-apply','crew-status'];
-const NAV={biz:[['home','nav.home'],['join','nav.join'],['request','nav.request'],['my','nav.my'],['verify','nav.verify']],crew:[['crew','nav.crew'],['crew-apply','nav.crewApply'],['crew-status','nav.crewStatus']]};
-const roleOf=v=>v.startsWith('crew')?'crew':'biz';
+const NAV={none:[['home','nav.home'],['verify','nav.verify']],biz:[['join','nav.join'],['request','nav.request'],['my','nav.my'],['verify','nav.verify']],crew:[['crew','nav.crew'],['crew-apply','nav.crewApply'],['crew-status','nav.crewStatus']]};
+const roleOf=(v,cur)=>v.startsWith('crew')?'crew':['join','request','my'].includes(v)?'biz':v==='home'?'none':(cur||'none');
 const ui={view:location.hash==='#collector'?'crew-apply':VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'home',joinStep:1,joinDone:null,appDone:null,reqDone:null,myBiz:null,verify:''};
+ui.role=roleOf(ui.view);
 
 function price(freq,vol){
   const items=[[t('pr.base',t('freq.'+(freq||'alt'))),freq==='daily'?220000:150000]];
@@ -1441,7 +1442,7 @@ function vCrewApply(){
       </fieldset>
       <div class="form-nav"><span></span><button type="submit" class="btn primary crew-btn">${t('ca.submit')}</button></div>
     </form>
-    <aside class="side">${calcCard()}<div class="callout crew-note">${note[0]}<button class="link" data-act="role" data-r="biz">${note[1]}</button>${note[2]}</div></aside>
+    <aside class="side">${calcCard()}<div class="callout crew-note">${note[0]}<button class="link" data-act="go" data-v="join">${note[1]}</button>${note[2]}</div></aside>
   </div>`;
 }
 const appTl=()=>`<ol class="tl">${t('cr.stepList').map(([a,b],i)=>tli(i===0?'done':i===1?'next':'',i===0?t('cr.received'):a,i===0?'':b)).join('')}</ol>`;
@@ -1554,7 +1555,7 @@ function vVerify(){
 /* ---------- render + events ---------- */
 const $app=document.getElementById('app');
 function renderChrome(){
-  const role=roleOf(ui.view); document.body.dataset.role=role;
+  const role=ui.role=roleOf(ui.view,ui.role); document.body.dataset.role=role;
   document.documentElement.lang=lang;
   document.getElementById('nav').innerHTML=NAV[role].map(([v,k])=>`<button data-act="go" data-v="${v}" aria-current="${v===ui.view?'page':'false'}">${t(k)}</button>`).join('');
   const rs=document.getElementById('role-switch'); rs.setAttribute('aria-label',t('role.aria'));
@@ -1587,7 +1588,7 @@ const ACT={
   go(d){ui.view=d.v; if(d.code) ui.verify=d.code; if(d.biz) ui.myBiz=d.biz;
     if(d.v==='request') ui.reqDone=null;
     try{history.replaceState(null,'','#'+d.v);}catch(e){} render(); window.scrollTo(0,0);},
-  role(d){ACT.go({v:d.r==='crew'?'crew':'home'});},
+  role(d){ACT.go({v:d.r==='crew'?'crew-apply':'request'});},
   lang(d){
     if(d.l===lang) return;
     // keep an in-progress join form: its step and values survive the re-render only when on step 1 with nothing typed, so carry values across
