@@ -594,6 +594,12 @@ footer::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;back
 .home-flow > .section:first-child{padding-top:0}
 .home-flow .section{padding-block:44px}
 .home-flow .section.tight{padding-block:28px}
+
+/* ===== v11 hero card + bubble share one left edge ===== */
+.hero-visual{justify-self:end;width:100%;max-width:420px;justify-items:stretch}
+.hero-visual .proof{max-width:none;justify-self:stretch}
+.hero-visual .bubble{justify-self:start;max-width:340px;width:auto}
+@media (max-width:900px){.hero-visual{justify-self:stretch;max-width:none}.hero-visual .bubble{max-width:none;justify-self:stretch}}
 </style>
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
