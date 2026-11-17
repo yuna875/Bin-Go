@@ -1,0 +1,76 @@
+# Every hour: read the site's visitor counter and, when it has grown,
+# comment on the "방문자 알림" issue mentioning the owner so GitHub Mobile pushes it.
+name: Visitor alert
+
+on:
+  schedule:
+    - cron: "7 * * * *"   # hourly, at :07 to avoid the top-of-hour rush
+  workflow_dispatch:       # "Run workflow" button for a manual check
+
+permissions:
+  issues: write
+
+concurrency:
+  group: visitor-alert
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Compare visitor count and notify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          API: https://abacus.jasoncameron.dev/get/bin-go-yuna875
+          LABEL: visitor-alert
+        run: |
+          set -uo pipefail
+          day=$(TZ=Asia/Makassar date +%F)
+          now=$(TZ=Asia/Makassar date '+%m/%d %H:%M')
+
+          read_count() {  # prints the counter value, 0 if the key does not exist yet, empty on failure
+            local body code
+            body=$(curl -sS -m 20 -w '\n%{http_code}' "$API/$1") || return 0
+            code=${body##*$'\n'}; body=${body%$'\n'*}
+            if [ "$code" = 404 ]; then echo 0; elif [ "$code" = 200 ]; then echo "$body" | jq -r '.value // 0'; fi
+          }
+          total=$(read_count total)
+          today=$(read_count "d-$day")
+          if ! [[ "$total" =~ ^[0-9]+$ ]]; then echo "Counter unavailable, skipping this run."; exit 0; fi
+          [[ "$today" =~ ^[0-9]+$ ]] || today=0
+          echo "total=$total today=$today"
+
+          gh label create "$LABEL" -R "$REPO" --color 1A97B0 --description "Bin-Go 방문자 알림" --force >/dev/null
+
+          issue=$(gh issue list -R "$REPO" --label "$LABEL" --state open --limit 1 --json number,body --jq '.[0] // empty')
+          body_for() {
+            printf '%s\n' "Bin-Go 사이트 방문자가 늘면 1시간마다 이 글에 댓글로 알려 드립니다." \
+              "" "- 사이트: https://yuna875.github.io/Bin-Go/" \
+              "- 알림을 멈추려면 이 글을 닫거나 Actions에서 Visitor alert를 Disable 하세요." \
+              "" "<!-- last-total:$1 -->"
+          }
+
+          if [ -z "$issue" ]; then
+            gh issue create -R "$REPO" --title "방문자 알림" --label "$LABEL" \
+              --body "$(body_for "$total")
+
+          @$OWNER 방문자 알림을 시작합니다. 현재 누적 방문 ${total} · 오늘 ${today}" >/dev/null
+            echo "Created alert issue at total=$total"
+            exit 0
+          fi
+
+          num=$(echo "$issue" | jq -r '.number')
+          last=$(echo "$issue" | jq -r '.body' | sed -n 's/.*<!-- last-total:\([0-9]*\) -->.*/\1/p' | tail -n1)
+          last=${last:-0}
+
+          if [ "$total" -gt "$last" ]; then
+            diff=$((total - last))
+            gh issue comment "$num" -R "$REPO" --body "@$OWNER 새 방문 +${diff} · 누적 ${total} · 오늘 ${today} (${now} WITA)" >/dev/null
+            gh issue edit "$num" -R "$REPO" --body "$(body_for "$total")" >/dev/null
+            echo "Notified: +$diff"
+          else
+            echo "No new visits since $last."
+          fi
