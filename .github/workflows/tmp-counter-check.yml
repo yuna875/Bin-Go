@@ -1,0 +1,14 @@
+name: tmp counter check
+on:
+  push:
+    branches: [tmp-counter-check]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          A=https://abacus.jasoncameron.dev
+          for u in "get/bin-go-yuna875/total" "get/bin-go-yuna875/d-$(TZ=Asia/Makassar date +%F)" "hit/bin-go-yuna875-probe/x-$(date +%s)"; do
+            echo "== $u"; curl -sS -m 20 -i -H "Origin: https://yuna875.github.io" "$A/$u" | grep -iE "^HTTP|access-control|retry|ratelimit|^\{" ; echo
+          done
+          echo "== page"; curl -sS -m 20 https://yuna875.github.io/Bin-Go/ | grep -o "abacus[^;]*" | head -2
