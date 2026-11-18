@@ -1808,11 +1808,17 @@ function paintVisits(){
   if(!/github\.io$/.test(location.hostname)) return;
   const NS='bin-go-yuna875', API='https://abacus.jasoncameron.dev';
   let day; try{day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Makassar'}).format(new Date());}catch(e){day=new Date().toISOString().slice(0,10);}
-  let fresh=true; try{fresh=!sessionStorage.getItem('bingo-counted');sessionStorage.setItem('bingo-counted','1');}catch(e){}
-  const op=fresh?'hit':'get';
-  const call=key=>{const c=new AbortController();setTimeout(()=>c.abort(),6000);
-    return fetch(`${API}/${op}/${NS}/${key}`,{signal:c.signal}).then(r=>r.ok?r.json():(r.status===404?{value:0}:Promise.reject(r.status))).then(j=>j.value);};
-  Promise.all([call('total'),call('d-'+day)]).then(([a,b])=>{VISITS.total=a;VISITS.today=b;paintVisits();}).catch(()=>{});
+  let counted=false; try{counted=!!sessionStorage.getItem('bingo-counted');}catch(e){}
+  const req=(op,key)=>{const c=new AbortController();setTimeout(()=>c.abort(),6000);
+    return fetch(`${API}/${op}/${NS}/${key}`,{signal:c.signal}).then(r=>r.ok?r.json().then(j=>j.value):(op==='get'&&r.status===404?0:Promise.reject(r.status)));};
+  // count once per session; if counting fails, still show the stored numbers
+  const read=key=>counted?req('get',key):req('hit',key).catch(()=>req('get',key).then(v=>{throw {fallback:v};}));
+  Promise.allSettled([read('total'),read('d-'+day)]).then(([a,b])=>{
+    const val=x=>x.status==='fulfilled'?x.value:(x.reason&&x.reason.fallback!=null?x.reason.fallback:null);
+    if(a.status==='fulfilled'&&!counted){try{sessionStorage.setItem('bingo-counted','1');}catch(e){}}
+    const tot=val(a); if(tot==null) return;
+    VISITS.total=tot; VISITS.today=val(b)??0; paintVisits();
+  });
 })();
 let tt;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,3400);}
