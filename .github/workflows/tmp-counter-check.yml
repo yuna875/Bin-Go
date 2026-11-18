@@ -7,11 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          A=https://abacus.jasoncameron.dev
-          for u in "hit/bin-go-yuna875/d-2026-11-17" "create/bin-go-yuna875/probe-$(date +%s)" "info/bin-go-yuna875/total"; do
-            echo "== abacus $u"; curl -sS -m 20 -i -H "Origin: https://yuna875.github.io" "$A/$u" | grep -iE "^HTTP|access-control-allow-origin|^\{" ; echo
-          done
+          set +e
           C=https://api.counterapi.dev/v1/bingo-probe-yuna875
           for u in "x/up" "x/up" "x/" "y/"; do
-            echo "== counterapi $u"; curl -sS -m 20 -i -H "Origin: https://yuna875.github.io" "$C/$u" | grep -iE "^HTTP|access-control-allow-origin|^\{" ; echo
+            echo "== counterapi $u"; curl -sS -m 20 -i -H "Origin: https://yuna875.github.io" "$C/$u" | grep -iE "^HTTP|access-control-allow-origin|^\{"; echo
           done
+          echo "== abacus hit retry"; curl -sS -m 20 -i "https://abacus.jasoncameron.dev/hit/bin-go-yuna875/d-2026-11-17" | grep -iE "^HTTP|^\{"
+          echo "== abacus status"; curl -sS -m 20 -i "https://abacus.jasoncameron.dev/stats" | grep -iE "^HTTP|^\{" | cut -c1-300
