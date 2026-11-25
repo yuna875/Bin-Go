@@ -740,6 +740,9 @@ footer::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;back
 
 .foot-visits{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:6px}
 .foot-visits::before{content:"";width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#1A97B0,#7ED6A8)}
+
+/* demo mode: only name fields show the required mark */
+.field:not([data-f="j-name"]):not([data-f="a-name"]) .req{display:none}
 </style>
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -1411,7 +1414,7 @@ function joinData(){
     spot:fd.get('spot'),plan:fd.get('plan'),window:fd.get('window'),start:fd.get('start'),pay:fd.get('pay')};
 }
 const sizeLabel=type=>type==='house'?t('f.people'):type==='homestay'?t('f.rooms'):t('f.seats');
-const sizeVal=(type,v)=>type==='house'?t('people',v):type==='homestay'?t('rooms',v):t('seats',v);
+const sizeVal=(type,v)=>!v?'-':type==='house'?t('people',v):type==='homestay'?t('rooms',v):t('seats',v);
 const priceLines=p=>p.items.map(([x,v])=>`<div class="sum-line"><span>${x}</span><b>${v<0?'− '+rp(-v):v?rp(v):''}</b></div>`).join('');
 function updateJoinSide(){
   const d=joinData(); if(!d) return;
@@ -1432,9 +1435,11 @@ function updateDesa(){
   note.innerHTML='';
 }
 const WA_RE=/^(\+?62|0)?8\d{8,11}$/;
+const DEMO_REQUIRED=['j-name','a-name']; // demo mode: only the name is required
 function validate(scope){
   let ok=true;
   scope.querySelectorAll('.field').forEach(fl=>{
+    if(!DEMO_REQUIRED.includes(fl.dataset.f)){fl.classList.remove('invalid');return;}
     let bad=false;
     const inputs=[...fl.querySelectorAll('input,select,textarea')].filter(i=>!i.closest('[hidden]'));
     const radios=inputs.filter(i=>i.type==='radio'), checks=inputs.filter(i=>i.type==='checkbox');
@@ -1455,7 +1460,7 @@ function setJoinStep(n){
     const d=joinData();const desa=DESAM[d.desa];
     document.getElementById('join-review').innerHTML=[
       [t('rv.name'),`${esc(d.name)} · ${t('type.'+d.type)} · ${sizeVal(d.type,esc(d.size))}`],[t('rv.owner'),esc(d.owner)],['WhatsApp','+62 '+esc(d.wa.replace(/^(\+?62|0)/,''))],
-      [t('rv.loc'),d.desa==='other'?esc(d.otherDesa)+' '+t('rv.wait'):`${esc(d.banjar)}, ${desa.name}`],[t('rv.addr'),esc(d.addr)],[t('rv.spot'),t('spot.'+d.spot)],
+      [t('rv.loc'),d.desa==='other'?esc(d.otherDesa||'-')+' '+t('rv.wait'):desa?`${d.banjar?esc(d.banjar)+', ':''}${desa.name}`:'-'],[t('rv.addr'),esc(d.addr)],[t('rv.spot'),t('spot.'+d.spot)],
       [t('rv.plan'),t('rv.from',t('plan.'+d.plan),esc(d.window),dkw(d.start))],[t('rv.pay'),d.pay==='qris'?t('pay.qris'):t('pay.cash')],[t('rv.fee'),rp(price(d.plan,d.desa).total)]
     ].map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('');
   }
@@ -1632,7 +1637,7 @@ function vCrewStatus(){
   const apps=U.apps.slice().reverse();
   return pageHead('tag.crew',t('nav.crewStatus'),t('cs.h1'),'','crew')+`
   <div class="wrap stack">
-    ${apps.length?apps.map(a=>`<div class="card"><div class="card-head"><div style="min-width:0"><h2>${esc(a.name)}</h2><p class="muted" style="font-size:14px"><span class="mono">${a.id}</span> · ${a.desa==='other'?t('f.otherArea'):(DESAM[a.desa]||{}).name} · ${dkw(a.created)}</p></div>${chip('wait',t('c.review'))}</div>${appTl()}</div>`).join('')
+    ${apps.length?apps.map(a=>`<div class="card"><div class="card-head"><div style="min-width:0"><h2>${esc(a.name)}</h2><p class="muted" style="font-size:14px"><span class="mono">${a.id}</span> · ${a.desa==='other'?t('f.otherArea'):((DESAM[a.desa]||{}).name||'-')} · ${dkw(a.created)}</p></div>${chip('wait',t('c.review'))}</div>${appTl()}</div>`).join('')
     :`<div class="empty">${t('cs.empty')}<br><button class="btn primary crew-btn" style="margin-top:12px" data-act="go" data-v="crew-apply">${t('nav.crewApply')}</button></div>`}
   </div>`;
 }
@@ -1882,9 +1887,6 @@ document.addEventListener('submit',e=>{
   if(f.id==='req-form'){
     if(!validate(f)) return;
     const d=reqData();
-    if(d.type==='extra'&&!(d.bags>0)){f.querySelector('[data-f="r-bags"]').classList.add('invalid');return;}
-    if(d.type==='bags'&&!(d.packs>0)){f.querySelector('[data-f="r-packs"]').classList.add('invalid');return;}
-    if(d.type==='bulky'&&!d.what){f.querySelector('[data-f="r-what"]').classList.add('invalid');f.querySelector('#r-what').focus();return;}
     const q={...d,id:rid('BG-R'),created:TODAY,matched:false};U.reqs.push(q);save();ui.reqDone=q.id;ui.myBiz=d.biz;render();window.scrollTo(0,0);toast(t('t.req'));return;
   }
   if(f.id==='app-form'){
